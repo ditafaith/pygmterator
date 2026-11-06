@@ -379,10 +379,20 @@
       maxZoom: 18
     }).fitBounds(indonesiaBounds, { padding: [15, 15] });
 
-    L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-      maxZoom: 19,
-      attribution: 'Map data &copy; Google'
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 18,
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, USGS'
     }).addTo(map);
+
+    // Pastikan peta me-render ulang ukuran canvas saat halaman dibuka
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 250);
+
+    // Paksa Leaflet menghitung ulang ukuran layar saat DOM siap
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
 
     // Custom Home Control Button
     const HomeControl = L.Control.extend({

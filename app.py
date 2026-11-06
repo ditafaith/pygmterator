@@ -38,10 +38,10 @@ def normalize_lon(lon):
     return round(lon, 4)
 
 @app.route('/', methods=['GET'])
-def health_check():
+def index():
     return jsonify({
         "status": "online",
-        "service": "PyGMT Generator API",
+        "service": "PyGMT Cartographic API",
         "volcanoes_loaded": len(df_volcanoes)
     }), 200
 @app.route('/api/generate-map', methods=['POST'])
