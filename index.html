@@ -713,6 +713,11 @@ print("Peta selesai digenerate pada resolusi 300 DPI.")
           body: JSON.stringify(payload)
         });
 
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.message || `Server error with status code: ${response.status}`);
+        }
+
         const resData = await response.json();
         if (resData.status === 'success') {
           lastGeneratedBase64 = resData.image_base64;
@@ -725,13 +730,12 @@ print("Peta selesai digenerate pada resolusi 300 DPI.")
           alert('PyGMT Error: ' + resData.message);
         }
       } catch (err) {
-        alert('Gagal menyambung ke server PyGMT lokal.\nPastikan skrip "python3 app.py" sedang berjalan di Terminal macOS Anda pada port 5001.');
+        alert('Gagal menyambung ke server PyGMT:\n' + err.message);
         console.error(err);
       } finally {
         btnGenerate.innerHTML = '<i class="fa-solid fa-play"></i> Generate Map';
         btnGenerate.disabled = false;
       }
-    });
 
     // Close Modal
     document.getElementById('btnCloseModal').addEventListener('click', () => {
