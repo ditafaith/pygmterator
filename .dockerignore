@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+temp_output_*.png
+.git
+.DS_Store
