@@ -703,7 +703,11 @@ print("Peta selesai digenerate pada resolusi 300 DPI.")
       };
 
       try {
-        const response = await fetch('http://127.0.0.1:5001/api/generate-map', {
+        const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+          ? 'http://127.0.0.1:5001'
+          : 'https://pygmterator-production.up.railway.app';
+
+        const response = await fetch(`${API_BASE}/api/generate-map`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
