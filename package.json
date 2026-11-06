@@ -1,0 +1,10 @@
+{
+  "name": "indogeomap-studio",
+  "version": "1.0.0",
+  "description": "Interactive PyGMT Map Generator with InSAR Footprints",
+  "scripts": {
+    "start": "python3 -m http.server 3000"
+  },
+  "author": "Arif Aditiya",
+  "license": "MIT"
+}

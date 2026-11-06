@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ID-Geomap Generator</title>
+  
+  <!-- Tailwind CSS & FontAwesome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Leaflet & Leaflet-Geoman -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.2/dist/leaflet-geoman.css" />
+  <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.2/dist/leaflet-geoman.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    pre, code { font-family: 'Fira Code', monospace; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
+    
+    /* Tombol Home Custom di Leaflet */
+    .leaflet-control-home {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #38bdf8;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+      transition: all 0.2s;
+    }
+    .leaflet-control-home:hover {
+      background: #1e293b;
+      color: #f8fafc;
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col select-none">
+
+  <!-- Header -->
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between shadow-md">
+    <div class="flex items-center gap-3">
+      <div class="p-2 bg-emerald-600/20 text-emerald-400 rounded-lg border border-emerald-500/30">
+        <i class="fa-solid fa-earth-asia text-xl"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight text-white">ID-Geomap Generator</h1>
+        <p class="text-xs text-slate-400">PyGMT Cartographic Engine with InSAR Footprints</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button id="btnGenerate" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-emerald-900/30 transition flex items-center gap-2">
+        <i class="fa-solid fa-play"></i> Generate Map
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 grid grid-cols-12 gap-0 overflow-hidden">
+    
+    <!-- Left Configuration Sidebar -->
+    <aside class="col-span-12 lg:col-span-4 bg-slate-900/95 border-r border-slate-800 p-4 overflow-y-auto custom-scrollbar flex flex-col gap-4 h-[calc(100vh-65px)]">
+      
+      <!-- Coordinate Region -->
+      <section class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60">
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+            <i class="fa-solid fa-vector-square text-emerald-400"></i> Region Coordinates
+          </label>
+          <button id="btnResetHomeRegion" class="text-[11px] text-sky-400 hover:text-sky-300 flex items-center gap-1">
+            <i class="fa-solid fa-house text-[10px]"></i> Home Indonesia
+          </button>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <span class="text-slate-400 block mb-0.5">Min Lon (West)</span>
+            <input id="minLon" type="number" step="0.01" value="121.50" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:border-emerald-500 font-mono">
+          </div>
+          <div>
+            <span class="text-slate-400 block mb-0.5">Max Lon (East)</span>
+            <input id="maxLon" type="number" step="0.01" value="124.50" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:border-emerald-500 font-mono">
+          </div>
+          <div>
+            <span class="text-slate-400 block mb-0.5">Min Lat (South)</span>
+            <input id="minLat" type="number" step="0.01" value="-9.20" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:border-emerald-500 font-mono">
+          </div>
+          <div>
+            <span class="text-slate-400 block mb-0.5">Max Lat (North)</span>
+            <input id="maxLat" type="number" step="0.01" value="-7.60" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:border-emerald-500 font-mono">
+          </div>
+        </div>
+
+        <div class="mt-2.5 flex flex-wrap gap-1.5">
+          <button id="presetSumatra" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Sumatra Arc</button>
+          <button id="presetJava" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Java Trench</button>
+          <button id="presetFlores" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Flores / Lewotobi</button>
+          <button id="presetPapua" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Papua Arc</button>
+        </div>
+      </section>
+
+      <!-- InSAR Footprint Coverage -->
+      <section class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60 space-y-3">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+          <span class="flex items-center gap-2"><i class="fa-solid fa-draw-polygon text-emerald-400"></i> InSAR Footprints</span>
+          <span class="text-[10px] text-slate-400">SAR Track Geometry</span>
+        </label>
+
+        <!-- Ascending Track (Default Unchecked) -->
+        <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input id="chkAsc" type="checkbox" class="w-4 h-4 rounded text-cyan-500 bg-slate-800 border-slate-700">
+              <span class="text-xs font-semibold text-cyan-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-up-right-dots"></i> Ascending Track
+              </span>
+            </label>
+            <input id="ascFrameNo" type="text" value="Track 156 / Frame 1152" placeholder="Frame No." class="text-[11px] bg-slate-950 border border-cyan-800/50 rounded px-2 py-0.5 text-cyan-200 w-36 text-right font-mono">
+          </div>
+          
+          <div id="ascCoordsContainer" class="hidden grid grid-cols-2 gap-1.5 text-[10px] pt-1">
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
+              <span class="text-slate-400 block font-semibold">Upper Left (UL)</span>
+              <div class="flex gap-1 mt-0.5">
+                <input id="asc_ul_lon" type="number" step="0.01" value="122.20" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="asc_ul_lat" type="number" step="0.01" value="-7.90" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
+              </div>
+            </div>
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
+              <span class="text-slate-400 block font-semibold">Upper Right (UR)</span>
+              <div class="flex gap-1 mt-0.5">
+                <input id="asc_ur_lon" type="number" step="0.01" value="123.80" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="asc_ur_lat" type="number" step="0.01" value="-7.65" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
+              </div>
+            </div>
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
+              <span class="text-slate-400 block font-semibold">Lower Left (LL)</span>
+              <div class="flex gap-1 mt-0.5">
+                <input id="asc_ll_lon" type="number" step="0.01" value="122.00" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="asc_ll_lat" type="number" step="0.01" value="-9.05" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
+              </div>
+            </div>
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
+              <span class="text-slate-400 block font-semibold">Lower Right (LR)</span>
+              <div class="flex gap-1 mt-0.5">
+                <input id="asc_lr_lon" type="number" step="0.01" value="123.60" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="asc_lr_lat" type="number" step="0.01" value="-8.80" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Descending Track (Default Unchecked) -->
+        <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input id="chkDsc" type="checkbox" class="w-4 h-4 rounded text-pink-500 bg-slate-800 border-slate-700">
+              <span class="text-xs font-semibold text-pink-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-down-right-dots"></i> Descending Track
+              </span>
+            </label>
+            <input id="dscFrameNo" type="text" value="Track 32 / Frame 580" placeholder="Frame No." class="text-[11px] bg-slate-950 border border-pink-800/50 rounded px-2 py-0.5 text-pink-200 w-36 text-right font-mono">
+          </div>
+          
+          <div id="dscCoordsContainer" class="hidden grid grid-cols-2 gap-1.5 text-[10px] pt-1">
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
+              <span class="text-slate-400 block font-semibold">Upper Left (UL)</span>
+              <div class="flex gap-1 mt-0.5">
+                <input id="dsc_ul_lon" type="number" step="0.01" value="122.30" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="dsc_ul_lat" type="number" step="0.01" value="-7.70" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
+              </div>
+            </div>
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
+              <span class="text-slate-400 block font-semibold">Upper Right (UR)</span>
+              <div class="flex gap-1 mt-0.5">
+                <input id="dsc_ur_lon" type="number" step="0.01" value="123.90" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="dsc_ur_lat" type="number" step="0.01" value="-7.95" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
+              </div>
+            </div>
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
+              <span class="text-slate-400 block font-semibold">Lower Left (LL)</span>
+              <div class="flex gap-1 mt-0.5">
+                <input id="dsc_ll_lon" type="number" step="0.01" value="122.10" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="dsc_ll_lat" type="number" step="0.01" value="-8.85" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
+              </div>
+            </div>
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
+              <span class="text-slate-400 block font-semibold">Lower Right (LR)</span>
+              <div class="flex gap-1 mt-0.5">
+                <input id="dsc_lr_lon" type="number" step="0.01" value="123.70" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="dsc_lr_lat" type="number" step="0.01" value="-9.10" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Cartography Layout Settings -->
+      <section class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60 space-y-3">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+          <i class="fa-solid fa-palette text-emerald-400"></i> Cartographic Layout
+        </label>
+
+        <!-- Colorbar & Orientation -->
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <span class="text-slate-400 block mb-1">Color Palette (CPT)</span>
+            <select id="cptType" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-white focus:border-emerald-500">
+              <option value="topography" selected>Topography & Relief</option>
+              <option value="terrain">Terrain (Standard)</option>
+              <option value="bathymetry">Bathymetry Ocean</option>
+            </select>
+          </div>
+          <div>
+            <span class="text-slate-400 block mb-1">Colorbar Position</span>
+            <select id="cbarPos" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-white focus:border-emerald-500">
+              <option value="bottom" selected>Horizontal (Bottom)</option>
+              <option value="right">Vertical (Right)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Frame Style -->
+        <div class="text-xs">
+          <span class="text-slate-400 block mb-1">Frame Style</span>
+          <select id="frameStyle" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-white focus:border-emerald-500">
+            <option value="plain" selected>Plain Line</option>
+            <option value="zebra">Zebra (Fancy GMT)</option>
+          </select>
+        </div>
+
+        <!-- Scalebar Option (Default Unchecked) -->
+        <div class="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 space-y-2">
+          <label class="flex items-center gap-2.5 cursor-pointer">
+            <input id="chkScalebar" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
+            <span class="text-xs font-medium text-slate-200">Show Scalebar (Southwest Corner)</span>
+          </label>
+          <div id="scalebarDropdownContainer" class="hidden text-xs pt-1">
+            <span class="text-slate-400 block mb-1">Scalebar Length (km)</span>
+            <select id="scalebarKm" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-white focus:border-emerald-500 font-mono">
+              <option value="1">1 km</option>
+              <option value="2">2 km</option>
+              <option value="5">5 km</option>
+              <option value="10">10 km</option>
+              <option value="20">20 km</option>
+              <option value="50" selected>50 km</option>
+              <option value="100">100 km</option>
+              <option value="200">200 km</option>
+              <option value="500">500 km</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Standard Layers (Default ALL Unchecked) -->
+      <section class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60 space-y-2">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+          <i class="fa-solid fa-layer-group text-emerald-400"></i> Standard Layers
+        </label>
+
+        <div class="space-y-1.5 text-xs">
+          <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-slate-800 cursor-pointer">
+            <input id="chkFaults" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
+            <span class="text-slate-200">Active Faults (Bird, 2003 / PUSGEN)</span>
+          </label>
+          <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-slate-800 cursor-pointer">
+            <input id="chkVolcanoes" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
+            <span class="text-slate-200">Holocene Volcanoes (Smithsonian GVP)</span>
+          </label>
+          <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-slate-800 cursor-pointer">
+            <input id="chkContours" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
+            <span class="text-slate-200">Contours (Interval 200m - Land Only)</span>
+          </label>
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- Right Workspace Area: Satellite Leaflet Map with Home Control -->
+    <section class="col-span-12 lg:col-span-8 relative h-[calc(100vh-65px)] bg-slate-950">
+      <div id="interactiveMap" class="w-full h-full"></div>
+      
+      <div class="absolute top-4 right-4 z-[1000] bg-slate-900/90 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-300 shadow-lg flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>Google Satellite | Indonesia Coverage</span>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= POP-UP PREVIEW & EXPORT MODAL ================= -->
+  <div id="modalPreview" class="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+        <div class="flex items-center gap-3">
+          <div class="p-1.5 bg-emerald-600/20 text-emerald-400 rounded border border-emerald-500/30">
+            <i class="fa-solid fa-map"></i>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-white tracking-wide">PyGMT Output Generation</h2>
+            <p class="text-[11px] text-slate-400">High-Resolution Earth Relief with Shading & Geophysical Layers</p>
+          </div>
+        </div>
+        
+        <!-- Modal Tabs & Close Button -->
+        <div class="flex items-center gap-4">
+          <div class="flex bg-slate-800/80 p-0.5 rounded-lg border border-slate-700">
+            <button id="modalTabCanvas" class="px-3 py-1 text-xs font-semibold rounded bg-slate-700 text-emerald-400 shadow">Map Result</button>
+            <button id="modalTabCode" class="px-3 py-1 text-xs font-semibold rounded text-slate-400 hover:text-slate-200">PyGMT Script</button>
+          </div>
+          <button id="btnCloseModal" class="text-slate-400 hover:text-white p-1 text-lg">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="flex-1 overflow-auto p-5 bg-slate-950 flex flex-col items-center justify-center custom-scrollbar">
+        
+        <!-- Image View (PyGMT Rendered Output) -->
+        <div id="modalCanvasWrapper" class="w-full flex items-center justify-center">
+          <div class="p-2 bg-slate-900 rounded-lg border border-slate-800 shadow-2xl max-w-full">
+            <img id="pygmtResultImg" src="" alt="PyGMT Map Output" class="max-h-[58vh] max-w-full rounded border border-slate-700 shadow object-contain" />
+          </div>
+        </div>
+
+        <!-- Python Script View -->
+        <div id="modalCodeWrapper" class="w-full h-[58vh] hidden flex-col">
+          <div class="flex justify-between items-center mb-2 px-1">
+            <span class="text-xs text-slate-400">Reproducible script for macOS Terminal / Jupyter Lab:</span>
+            <button id="btnCopyCode" class="text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 rounded flex items-center gap-1.5">
+              <i class="fa-regular fa-copy"></i> Copy Script
+            </button>
+          </div>
+          <pre class="flex-1 overflow-auto bg-slate-900 p-4 rounded-lg border border-slate-800 text-xs text-emerald-300 custom-scrollbar"><code id="codeBlock"></code></pre>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer (Download Buttons) -->
+      <div class="px-6 py-3.5 border-t border-slate-800 bg-slate-950/70 flex items-center justify-between">
+        <span class="text-xs text-slate-400 font-mono">Output standard: 300 DPI</span>
+        <div class="flex items-center gap-3">
+          <button id="btnExportPNG" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg border border-emerald-500/50 shadow-md transition flex items-center gap-2">
+            <i class="fa-regular fa-file-image"></i> Download PNG
+          </button>
+          <button id="btnExportJPG" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-2">
+            <i class="fa-regular fa-file-image"></i> Download JPEG
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // --- 1. SATELLITE MAP LOCKED TO INDONESIA WITH EXPANDED PAPUA ---
+    const indonesiaBounds = L.latLngBounds(
+      L.latLng(-13.0, 92.0),
+      L.latLng(8.0, 143.5)
+    );
+
+    const map = L.map('interactiveMap', {
+      maxBounds: indonesiaBounds,
+      maxBoundsViscosity: 0.9,
+      minZoom: 4,
+      maxZoom: 18
+    }).fitBounds(indonesiaBounds, { padding: [15, 15] });
+
+    L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+      maxZoom: 19,
+      attribution: 'Map data &copy; Google'
+    }).addTo(map);
+
+    // Custom Home Control Button
+    const HomeControl = L.Control.extend({
+      options: { position: 'topleft' },
+      onAdd: function() {
+        const container = L.DomUtil.create('div', 'leaflet-bar');
+        const button = L.DomUtil.create('a', 'leaflet-control-home', container);
+        button.innerHTML = '<i class="fa-solid fa-house"></i>';
+        button.title = 'Kembali ke Peta Indonesia Utuh';
+        button.href = '#';
+
+        L.DomEvent.disableClickPropagation(button);
+        L.DomEvent.on(button, 'click', function(e) {
+          L.DomEvent.preventDefault(e);
+          resetToHome();
+        });
+        return container;
+      }
+    });
+    map.addControl(new HomeControl());
+
+    map.pm.addControls({
+      position: 'topleft',
+      drawCircle: false,
+      drawCircleMarker: false,
+      drawPolyline: false,
+      drawPolygon: false,
+      drawMarker: false,
+      drawText: false,
+      cutPolygon: false,
+      rotateMode: false
+    });
+
+    let currentBboxLayer = null;
+    let ascPolygonLayer = null;
+    let dscPolygonLayer = null;
+    let lastGeneratedBase64 = "";
+
+    function normalizeLon(lon) {
+      while (lon > 180.0) lon -= 360.0;
+      while (lon < -180.0) lon += 360.0;
+      return parseFloat(lon.toFixed(2));
+    }
+
+    function getCoords(prefix) {
+      return {
+        ul: [normalizeLon(parseFloat(document.getElementById(`${prefix}_ul_lon`).value)), parseFloat(document.getElementById(`${prefix}_ul_lat`).value)],
+        ur: [normalizeLon(parseFloat(document.getElementById(`${prefix}_ur_lon`).value)), parseFloat(document.getElementById(`${prefix}_ur_lat`).value)],
+        lr: [normalizeLon(parseFloat(document.getElementById(`${prefix}_lr_lon`).value)), parseFloat(document.getElementById(`${prefix}_lr_lat`).value)],
+        ll: [normalizeLon(parseFloat(document.getElementById(`${prefix}_ll_lon`).value)), parseFloat(document.getElementById(`${prefix}_ll_lat`).value)],
+        frame: document.getElementById(`${prefix}FrameNo`).value
+      };
+    }
+
+    function updateMapOverlays() {
+      const minLon = normalizeLon(parseFloat(document.getElementById('minLon').value));
+      const maxLon = normalizeLon(parseFloat(document.getElementById('maxLon').value));
+      const minLat = parseFloat(document.getElementById('minLat').value);
+      const maxLat = parseFloat(document.getElementById('maxLat').value);
+
+      if (currentBboxLayer) map.removeLayer(currentBboxLayer);
+      currentBboxLayer = L.rectangle([[minLat, minLon], [maxLat, maxLon]], {
+        color: '#10b981', weight: 2, fillOpacity: 0.08
+      }).addTo(map);
+
+      // InSAR Ascending Polygon
+      if (ascPolygonLayer) map.removeLayer(ascPolygonLayer);
+      if (document.getElementById('chkAsc').checked) {
+        document.getElementById('ascCoordsContainer').classList.remove('hidden');
+        const asc = getCoords('asc');
+        const ascPoints = [
+          [asc.ul[1], asc.ul[0]],
+          [asc.ur[1], asc.ur[0]],
+          [asc.lr[1], asc.lr[0]],
+          [asc.ll[1], asc.ll[0]]
+        ];
+        ascPolygonLayer = L.polygon(ascPoints, {
+          color: '#06b6d4', weight: 2.5, fillColor: '#06b6d4', fillOpacity: 0.2
+        }).bindTooltip(`Ascending: ${asc.frame}`, { permanent: false }).addTo(map);
+      } else {
+        document.getElementById('ascCoordsContainer').classList.add('hidden');
+      }
+
+      // InSAR Descending Polygon
+      if (dscPolygonLayer) map.removeLayer(dscPolygonLayer);
+      if (document.getElementById('chkDsc').checked) {
+        document.getElementById('dscCoordsContainer').classList.remove('hidden');
+        const dsc = getCoords('dsc');
+        const dscPoints = [
+          [dsc.ul[1], dsc.ul[0]],
+          [dsc.ur[1], dsc.ur[0]],
+          [dsc.lr[1], dsc.lr[0]],
+          [dsc.ll[1], dsc.ll[0]]
+        ];
+        dscPolygonLayer = L.polygon(dscPoints, {
+          color: '#ec4899', weight: 2.5, fillColor: '#ec4899', fillOpacity: 0.2, dashArray: '5, 5'
+        }).bindTooltip(`Descending: ${dsc.frame}`, { permanent: false }).addTo(map);
+      } else {
+        document.getElementById('dscCoordsContainer').classList.add('hidden');
+      }
+    }
+
+    map.on('pm:create', (e) => {
+      if (currentBboxLayer) map.removeLayer(currentBboxLayer);
+      currentBboxLayer = e.layer;
+      const bounds = e.layer.getBounds();
+      // Gunakan normalizeLon untuk mencegah bug penambahan 360 derajat
+      document.getElementById('minLon').value = normalizeLon(bounds.getWest());
+      document.getElementById('maxLon').value = normalizeLon(bounds.getEast());
+      document.getElementById('minLat').value = bounds.getSouth().toFixed(2);
+      document.getElementById('maxLat').value = bounds.getNorth().toFixed(2);
+      updateMapOverlays();
+    });
+
+    function resetToHome() {
+      map.fitBounds(indonesiaBounds, { padding: [15, 15] });
+      setCoords(94.0, 141.5, -11.0, 6.0);
+    }
+
+    document.getElementById('btnResetHomeRegion').addEventListener('click', resetToHome);
+
+    // Preset Buttons
+    document.getElementById('presetSumatra').addEventListener('click', () => setCoords(95.0, 106.0, -6.0, 6.0));
+    document.getElementById('presetJava').addEventListener('click', () => setCoords(105.0, 115.0, -9.0, -5.5));
+    document.getElementById('presetFlores').addEventListener('click', () => setCoords(121.5, 124.5, -9.2, -7.6));
+    document.getElementById('presetPapua').addEventListener('click', () => setCoords(129.5, 141.5, -9.5, -0.5));
+
+    function setCoords(minX, maxX, minY, maxY) {
+      document.getElementById('minLon').value = normalizeLon(minX);
+      document.getElementById('maxLon').value = normalizeLon(maxX);
+      document.getElementById('minLat').value = minY.toFixed(2);
+      document.getElementById('maxLat').value = maxY.toFixed(2);
+      updateMapOverlays();
+      map.fitBounds([[minY, minX], [maxY, maxX]], { padding: [20, 20] });
+    }
+
+    // Toggle Scalebar Dropdown
+    document.getElementById('chkScalebar').addEventListener('change', (e) => {
+      const container = document.getElementById('scalebarDropdownContainer');
+      if (e.target.checked) {
+        container.classList.remove('hidden');
+      } else {
+        container.classList.add('hidden');
+      }
+    });
+
+    // --- 2. GENERATE REPRODUCIBLE PYGMT SCRIPT ---
+    function updatePyGMTCode() {
+      const minLon = normalizeLon(parseFloat(document.getElementById('minLon').value));
+      const maxLon = normalizeLon(parseFloat(document.getElementById('maxLon').value));
+      const minLat = parseFloat(document.getElementById('minLat').value);
+      const maxLat = parseFloat(document.getElementById('maxLat').value);
+      const cpt = document.getElementById('cptType').value;
+      const cbarPos = document.getElementById('cbarPos').value;
+      const frame = document.getElementById('frameStyle').value;
+      
+      const showScalebar = document.getElementById('chkScalebar').checked;
+      const scaleKm = document.getElementById('scalebarKm').value;
+
+      const showFaults = document.getElementById('chkFaults').checked;
+      const showVolcanoes = document.getElementById('chkVolcanoes').checked;
+      const showContours = document.getElementById('chkContours').checked;
+      const showAsc = document.getElementById('chkAsc').checked;
+      const showDsc = document.getElementById('chkDsc').checked;
+
+      const asc = getCoords('asc');
+      const dsc = getCoords('dsc');
+
+      const frameCode = frame === 'zebra' ? 'f' : 'p';
+      const cbarOrientation = cbarPos === 'right' ? 'JMR+w8c/0.5c+o1.0c/0c' : 'JBC+w10c/0.5c+o0c/1.4c+h';
+
+      const script = `# ==============================================================================
+# ID-GEOMAP GENERATOR: HIGH-RESOLUTION PYGMT PYTHON SCRIPT
+# Standard: 300 DPI Cartographic Publication
+# Region: [${minLon}, ${maxLon}, ${minLat}, ${maxLat}]
+# ==============================================================================
+
+import pygmt
+import pandas as pd
+import numpy as np
+
+# 1. Spatial Region & Projection
+region = [${minLon}, ${maxLon}, ${minLat}, ${maxLat}]
+projection = "M18c"
+
+fig = pygmt.Figure()
+
+# Konfigurasi: 2 desimal koordinat & angka colorbar bulat utuh tanpa koma
+pygmt.config(
+    FORMAT_GEO_MAP="ddd.xx",
+    FORMAT_FLOAT_MAP="%.0f"
+)
+
+# 2. Earth Relief (Grid line dihilangkan, hanya anotasi & border frame)
+grid = pygmt.datasets.load_earth_relief(resolution="01s", region=region)
+fig.grdimage(
+    grid=grid,
+    region=region,
+    projection=projection,
+    cmap="${cpt === 'terrain' ? 'geo' : (cpt === 'bathymetry' ? 'bathy' : 'relief')}",
+    shading=True,
+    frame=["a", "${frameCode}"]
+)
+${showContours ? `
+# 3. Kontur Elevasi: Interval 200m, Anotasi Label Bulat, Khusus Darat
+fig.grdcontour(
+    grid=grid,
+    interval=200,
+    annotation="200+f7p,Helvetica-Bold,gray20",
+    limit=[200, 9000],
+    pen="0.35p,gray40"
+)
+` : ''}
+# Garis Pantai & Daratan
+fig.coast(
+    region=region,
+    projection=projection,
+    shorelines="0.6p,gray20",
+    resolution="f"
+)
+${showAsc ? `
+# 4. InSAR Ascending Footprint (${asc.frame})
+asc_x = [${asc.ul[0]}, ${asc.ur[0]}, ${asc.lr[0]}, ${asc.ll[0]}, ${asc.ul[0]}]
+asc_y = [${asc.ul[1]}, ${asc.ur[1]}, ${asc.lr[1]}, ${asc.ll[1]}, ${asc.ul[1]}]
+fig.plot(x=asc_x, y=asc_y, pen="1.8p,cyan3", fill="cyan3@80")
+fig.text(
+    x=${((asc.ul[0] + asc.ur[0] + asc.lr[0] + asc.ll[0]) / 4).toFixed(3)},
+    y=${((asc.ul[1] + asc.ur[1] + asc.lr[1] + asc.ll[1]) / 4).toFixed(3)},
+    text="Asc: ${asc.frame}",
+    font="9p,Helvetica-Bold,cyan4"
+)
+` : ''}${showDsc ? `
+# 5. InSAR Descending Footprint (${dsc.frame})
+dsc_x = [${dsc.ul[0]}, ${dsc.ur[0]}, ${dsc.lr[0]}, ${dsc.ll[0]}, ${dsc.ul[0]}]
+dsc_y = [${dsc.ul[1]}, ${dsc.ur[1]}, ${dsc.lr[1]}, ${dsc.ll[1]}, ${dsc.ul[1]}]
+fig.plot(x=dsc_x, y=dsc_y, pen="1.8p,magenta3,--", fill="magenta3@80")
+fig.text(
+    x=${((dsc.ul[0] + dsc.ur[0] + dsc.lr[0] + dsc.ll[0]) / 4).toFixed(3)},
+    y=${((dsc.ul[1] + dsc.ur[1] + dsc.lr[1] + dsc.ll[1]) / 4).toFixed(3)},
+    text="Dsc: ${dsc.frame}",
+    font="9p,Helvetica-Bold,magenta4"
+)
+` : ''}${showFaults ? `
+# 6. Active Faults (Standard: Bird, 2003 / PUSGEN)
+fig.plot(
+    data="https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json",
+    pen="1.8p,red3"
+)
+` : ''}${showVolcanoes ? `
+# 7. Holocene Volcanoes (Smithsonian GVP Catalog)
+df_v = pd.read_csv("volcanoes-2026-11-06_20-20-10_+0700.tsv", sep="\\t").dropna(subset=['Latitude', 'Longitude'])
+v_in_reg = df_v[
+    (df_v['Longitude'] >= ${minLon}) & (df_v['Longitude'] <= ${maxLon}) &
+    (df_v['Latitude'] >= ${minLat}) & (df_v['Latitude'] <= ${maxLat})
+]
+if not v_in_reg.empty:
+    fig.plot(
+        x=v_in_reg['Longitude'].values,
+        y=v_in_reg['Latitude'].values,
+        style="t0.35c",
+        fill="red3",
+        pen="0.6p,black"
+    )
+` : ''}${showScalebar ? `
+# 8. Scalebar Southwest (Pojok Kiri Bawah) dengan Transparansi 60%
+fig.basemap(
+    map_scale="x0.6c/0.6c+c${minLat}+w${scaleKm}k+lkm+f+jBL",
+    box="+gwhite@40+p0.5p,gray30+r2p"
+)
+` : ''}
+# 9. Scientific Colorbar (Angka Bulat Utuh)
+fig.colorbar(
+    position="${cbarOrientation}",
+    box=False,
+    frame=["a1000", "x+lElevation", "y+lm"]
+)
+
+# 10. Save Output Figure (300 DPI)
+fig.savefig("id_geomap_output.png", dpi=300)
+fig.savefig("id_geomap_output.jpg", dpi=300)
+print("Peta selesai digenerate pada resolusi 300 DPI.")
+`;
+      document.getElementById('codeBlock').innerText = script;
+    }
+
+    // --- 3. BACKEND API CALL & MODAL CONTROLS ---
+    const modal = document.getElementById('modalPreview');
+    const btnGenerate = document.getElementById('btnGenerate');
+
+    btnGenerate.addEventListener('click', async () => {
+      btnGenerate.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Rendering PyGMT...';
+      btnGenerate.disabled = true;
+
+      const asc = getCoords('asc');
+      const dsc = getCoords('dsc');
+
+      const payload = {
+        minLon: normalizeLon(parseFloat(document.getElementById('minLon').value)),
+        maxLon: normalizeLon(parseFloat(document.getElementById('maxLon').value)),
+        minLat: parseFloat(document.getElementById('minLat').value),
+        maxLat: parseFloat(document.getElementById('maxLat').value),
+        cptType: document.getElementById('cptType').value,
+        cbarPos: document.getElementById('cbarPos').value,
+        frameStyle: document.getElementById('frameStyle').value,
+        
+        showScalebar: document.getElementById('chkScalebar').checked,
+        scalebarKm: parseInt(document.getElementById('scalebarKm').value),
+        
+        showFaults: document.getElementById('chkFaults').checked,
+        showVolcanoes: document.getElementById('chkVolcanoes').checked,
+        showContours: document.getElementById('chkContours').checked,
+        showAsc: document.getElementById('chkAsc').checked,
+        ascCoords: asc,
+        ascFrame: asc.frame,
+        showDsc: document.getElementById('chkDsc').checked,
+        dscCoords: dsc,
+        dscFrame: dsc.frame
+      };
+
+      try {
+        const response = await fetch('http://127.0.0.1:5001/api/generate-map', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const resData = await response.json();
+        if (resData.status === 'success') {
+          lastGeneratedBase64 = resData.image_base64;
+          document.getElementById('pygmtResultImg').src = resData.image_base64;
+          updatePyGMTCode();
+
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+        } else {
+          alert('PyGMT Error: ' + resData.message);
+        }
+      } catch (err) {
+        alert('Gagal menyambung ke server PyGMT lokal.\nPastikan skrip "python3 app.py" sedang berjalan di Terminal macOS Anda pada port 5001.');
+        console.error(err);
+      } finally {
+        btnGenerate.innerHTML = '<i class="fa-solid fa-play"></i> Generate Map';
+        btnGenerate.disabled = false;
+      }
+    });
+
+    // Close Modal
+    document.getElementById('btnCloseModal').addEventListener('click', () => {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    });
+
+    // Modal Tabs
+    const modalTabCanvas = document.getElementById('modalTabCanvas');
+    const modalTabCode = document.getElementById('modalTabCode');
+    const modalCanvasWrapper = document.getElementById('modalCanvasWrapper');
+    const modalCodeWrapper = document.getElementById('modalCodeWrapper');
+
+    modalTabCanvas.addEventListener('click', () => {
+      modalCanvasWrapper.classList.remove('hidden');
+      modalCanvasWrapper.classList.add('flex');
+      modalCodeWrapper.classList.add('hidden');
+      modalCodeWrapper.classList.remove('flex');
+      modalTabCanvas.classList.add('bg-slate-700', 'text-emerald-400');
+      modalTabCode.classList.remove('bg-slate-700', 'text-emerald-400');
+    });
+
+    modalTabCode.addEventListener('click', () => {
+      modalCanvasWrapper.classList.add('hidden');
+      modalCanvasWrapper.classList.remove('flex');
+      modalCodeWrapper.classList.remove('hidden');
+      modalCodeWrapper.classList.add('flex');
+      modalTabCode.classList.add('bg-slate-700', 'text-emerald-400');
+      modalTabCanvas.classList.remove('bg-slate-700', 'text-emerald-400');
+    });
+
+    // Downloads
+    document.getElementById('btnExportPNG').addEventListener('click', () => {
+      if (!lastGeneratedBase64) return;
+      const link = document.createElement('a');
+      link.download = 'ID_Geomap_PyGMT.png';
+      link.href = lastGeneratedBase64;
+      link.click();
+    });
+
+    document.getElementById('btnExportJPG').addEventListener('click', () => {
+      if (!lastGeneratedBase64) return;
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = img.width;
+        c.height = img.height;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0);
+        const link = document.createElement('a');
+        link.download = 'ID_Geomap_PyGMT.jpg';
+        link.href = c.toDataURL('image/jpeg', 0.95);
+        link.click();
+      };
+      img.src = lastGeneratedBase64;
+    });
+
+    // Copy Code
+    document.getElementById('btnCopyCode').addEventListener('click', () => {
+      navigator.clipboard.writeText(document.getElementById('codeBlock').innerText);
+      alert('Script PyGMT berhasil disalin ke clipboard.');
+    });
+
+    // Change listeners for overlays
+    ['chkAsc', 'chkDsc'].forEach(id => {
+      document.getElementById(id).addEventListener('change', updateMapOverlays);
+    });
+
+    ['asc_ul_lon', 'asc_ul_lat', 'asc_ur_lon', 'asc_ur_lat', 'asc_lr_lon', 'asc_lr_lat', 'asc_ll_lon', 'asc_ll_lat',
+     'dsc_ul_lon', 'dsc_ul_lat', 'dsc_ur_lon', 'dsc_ur_lat', 'dsc_lr_lon', 'dsc_lr_lat', 'dsc_ll_lon', 'dsc_ll_lat'].forEach(id => {
+      document.getElementById(id).addEventListener('input', updateMapOverlays);
+    });
+
+    window.addEventListener('load', () => {
+      updateMapOverlays();
+    });
+  </script>
+</body>
+</html>
