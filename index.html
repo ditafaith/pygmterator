@@ -263,6 +263,32 @@
         </div>
       </section>
 
+      <!-- GPS Stations -->
+      <section class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60 space-y-2.5">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+          <span class="flex items-center gap-2"><i class="fa-solid fa-location-dot text-emerald-400"></i> GPS Stations</span>
+          <span class="text-[10px] text-slate-400">ID Lat Lon</span>
+        </label>
+
+        <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-slate-800 cursor-pointer text-xs">
+          <input id="chkGps" type="checkbox" class="w-3.5 h-3.5 rounded text-blue-500 bg-slate-800 border-slate-700">
+          <span class="text-slate-200 flex items-center gap-1.5">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span> Plot GPS Stations (blue circle)
+          </span>
+        </label>
+
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-400">Symbol size (pt)</span>
+          <input id="gpsSize" type="number" min="1" max="60" step="1" value="12" class="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white font-mono text-right focus:border-emerald-500">
+        </div>
+
+        <input id="gpsFile" type="file" class="block w-full text-[11px] text-slate-300 cursor-pointer file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-700 file:text-emerald-300 hover:file:bg-slate-600">
+        <p id="gpsStatus" class="text-[10px] text-slate-400 leading-relaxed">
+          Format tiap baris: <span class="font-mono text-slate-300">ID lat lon</span><br>
+          Contoh: <span class="font-mono text-slate-300">bako -6.309 106.203</span>
+        </p>
+      </section>
+
       <!-- Standard Layers (Default ALL Unchecked) -->
       <section class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60 space-y-2">
         <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
@@ -543,6 +569,73 @@
       }
     });
 
+    // --- GPS STATIONS (format per baris: ID lat lon) ---
+    let gpsStations = [];
+    let gpsLayer = null;
+
+    function getGpsSize() {
+      const v = parseFloat(document.getElementById('gpsSize').value);
+      return Math.min(60, Math.max(1, isFinite(v) ? v : 12));
+    }
+
+    function parseGpsText(text) {
+      const stations = [];
+      let skipped = 0;
+      text.split(/\r?\n/).forEach(raw => {
+        const line = raw.replace(/^\uFEFF/, '').trim();
+        if (!line || line.startsWith('#')) return;
+        const parts = line.split(/[\s,;]+/);
+        if (parts.length < 3) { skipped++; return; }
+        const lat = parseFloat(parts[1]);
+        let lon = parseFloat(parts[2]);
+        if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90) { skipped++; return; }
+        while (lon > 180) lon -= 360;
+        while (lon < -180) lon += 360;
+        stations.push({ id: parts[0], lat: lat, lon: lon });
+      });
+      return { stations, skipped };
+    }
+
+    function updateGpsOverlay() {
+      if (gpsLayer) { map.removeLayer(gpsLayer); gpsLayer = null; }
+      if (!document.getElementById('chkGps').checked || gpsStations.length === 0) return;
+      const radius = Math.max(2, getGpsSize() / 2);
+      gpsLayer = L.layerGroup(
+        gpsStations.map(s =>
+          L.circleMarker([s.lat, s.lon], {
+            radius: radius, color: '#ffffff', weight: 1, fillColor: '#2563eb', fillOpacity: 1
+          }).bindTooltip(s.id)
+        )
+      ).addTo(map);
+    }
+
+    document.getElementById('gpsFile').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const status = document.getElementById('gpsStatus');
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const { stations, skipped } = parseGpsText(String(reader.result));
+        gpsStations = stations;
+        if (stations.length > 0) {
+          document.getElementById('chkGps').checked = true;
+          status.className = 'text-[10px] text-emerald-400 leading-relaxed';
+          status.textContent = `${file.name}: ${stations.length} stasiun dimuat` + (skipped ? `, ${skipped} baris dilewati.` : '.');
+        } else {
+          status.className = 'text-[10px] text-red-400 leading-relaxed';
+          status.textContent = `${file.name}: tidak ada baris valid. Gunakan format "ID lat lon".`;
+        }
+        updateGpsOverlay();
+      };
+      reader.onerror = () => {
+        status.className = 'text-[10px] text-red-400 leading-relaxed';
+        status.textContent = 'Gagal membaca file.';
+      };
+      reader.readAsText(file);
+    });
+    document.getElementById('chkGps').addEventListener('change', updateGpsOverlay);
+    document.getElementById('gpsSize').addEventListener('input', updateGpsOverlay);
+
     // --- 2. GENERATE REPRODUCIBLE PYGMT SCRIPT ---
     function updatePyGMTCode() {
       const minLon = normalizeLon(parseFloat(document.getElementById('minLon').value));
@@ -558,6 +651,8 @@
 
       const showFaults = document.getElementById('chkFaults').checked;
       const showVolcanoes = document.getElementById('chkVolcanoes').checked;
+      const showGps = document.getElementById('chkGps').checked && gpsStations.length > 0;
+      const gpsSize = getGpsSize();
       const showContours = document.getElementById('chkContours').checked;
       const showAsc = document.getElementById('chkAsc').checked;
       const showDsc = document.getElementById('chkDsc').checked;
@@ -660,6 +755,20 @@ if not v_in_reg.empty:
         fill="red3",
         pen="0.6p,black"
     )
+` : ''}${showGps ? `
+# 7b. GPS Stations (blue circle, ${gpsSize} pt)
+gps_stations = [
+${gpsStations.map(s => `    ("${s.id}", ${s.lat}, ${s.lon}),`).join('\n')}
+]
+gps_lat = [s[1] for s in gps_stations]
+gps_lon = [s[2] for s in gps_stations]
+fig.plot(
+    x=gps_lon,
+    y=gps_lat,
+    style="c${gpsSize}p",
+    fill="blue",
+    pen="0.6p,black"
+)
 ` : ''}${showScalebar ? `
 # 8. Scalebar Southwest (Pojok Kiri Bawah) dengan Transparansi 60%
 fig.basemap(
@@ -687,6 +796,10 @@ print("Peta selesai digenerate pada resolusi 300 DPI.")
     const btnGenerate = document.getElementById('btnGenerate');
 
     btnGenerate.addEventListener('click', async () => {
+      if (document.getElementById('chkGps').checked && gpsStations.length === 0) {
+        alert('Plot GPS aktif, tetapi belum ada data stasiun.\nPilih file dengan format "ID lat lon" atau matikan opsi GPS Stations.');
+        return;
+      }
       btnGenerate.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Rendering PyGMT...';
       btnGenerate.disabled = true;
 
@@ -708,6 +821,9 @@ print("Peta selesai digenerate pada resolusi 300 DPI.")
         showFaults: document.getElementById('chkFaults').checked,
         showVolcanoes: document.getElementById('chkVolcanoes').checked,
         showContours: document.getElementById('chkContours').checked,
+        showGps: document.getElementById('chkGps').checked,
+        gpsSize: getGpsSize(),
+        gpsStations: gpsStations,
         showAsc: document.getElementById('chkAsc').checked,
         ascCoords: asc,
         ascFrame: asc.frame,

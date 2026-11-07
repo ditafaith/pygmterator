@@ -78,6 +78,15 @@ def generate_map():
         show_faults = data.get('showFaults', False)
         show_volcanoes = data.get('showVolcanoes', False)
         show_contours = data.get('showContours', False)
+
+        # GPS Stations (format dari frontend: [{"id": "bako", "lat": -6.309, "lon": 106.203}, ...])
+        show_gps = data.get('showGps', False)
+        gps_stations = data.get('gpsStations', []) or []
+        try:
+            gps_size = float(data.get('gpsSize', 12))
+        except (TypeError, ValueError):
+            gps_size = 12.0
+        gps_size = min(max(gps_size, 1.0), 60.0)
         
         # InSAR Footprints
         show_asc = data.get('showAsc', False)
@@ -208,6 +217,27 @@ def generate_map():
                     y=v_in_region['Latitude'].values,
                     style="t0.35c",
                     fill="red3",
+                    pen="0.6p,black"
+                )
+
+        # E2. Stasiun GPS: lingkaran biru (ukuran dalam point)
+        if show_gps and gps_stations:
+            gps_lon, gps_lat = [], []
+            for st in gps_stations:
+                try:
+                    st_lat = float(st['lat'])
+                    st_lon = normalize_lon(float(st['lon']))
+                except (KeyError, TypeError, ValueError):
+                    continue
+                if min_lon <= st_lon <= max_lon and min_lat <= st_lat <= max_lat:
+                    gps_lon.append(st_lon)
+                    gps_lat.append(st_lat)
+            if gps_lon:
+                fig.plot(
+                    x=gps_lon,
+                    y=gps_lat,
+                    style=f"c{gps_size:g}p",
+                    fill="blue",
                     pen="0.6p,black"
                 )
 
