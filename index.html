@@ -284,8 +284,8 @@
 
         <input id="gpsFile" type="file" class="block w-full text-[11px] text-slate-300 cursor-pointer file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-700 file:text-emerald-300 hover:file:bg-slate-600">
         <p id="gpsStatus" class="text-[10px] text-slate-400 leading-relaxed">
-          Format tiap baris: <span class="font-mono text-slate-300">ID lat lon</span><br>
-          Contoh: <span class="font-mono text-slate-300">bako -6.309 106.203</span>
+          Format : <span class="font-mono text-slate-300">ID lat lon</span><br>
+          Example: <span class="font-mono text-slate-300">bako -6.491 106.849</span>
         </p>
       </section>
 
@@ -620,7 +620,7 @@
         if (stations.length > 0) {
           document.getElementById('chkGps').checked = true;
           status.className = 'text-[10px] text-emerald-400 leading-relaxed';
-          status.textContent = `${file.name}: ${stations.length} stasiun dimuat` + (skipped ? `, ${skipped} baris dilewati.` : '.');
+          status.textContent = `${file.name}: ${stations.length} station` + (skipped ? `, ${skipped} baris dilewati.` : '.');
         } else {
           status.className = 'text-[10px] text-red-400 leading-relaxed';
           status.textContent = `${file.name}: tidak ada baris valid. Gunakan format "ID lat lon".`;
