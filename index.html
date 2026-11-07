@@ -43,6 +43,19 @@
       color: #f8fafc;
       transform: scale(1.05);
     }
+    /* Label ID stasiun GPS */
+    .leaflet-tooltip.gps-label {
+      background: rgba(255, 255, 255, 0.78);
+      border: none;
+      box-shadow: none;
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 10px;
+      padding: 0 3px;
+    }
+    .leaflet-tooltip-top.gps-label::before { display: none; }
+    /* Ikon gunung api */
+    .volcano-icon { background: transparent; border: none; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col select-none">
@@ -277,9 +290,13 @@
           </span>
         </label>
 
-        <div class="flex items-center justify-between text-xs">
+        <div class="flex items-center gap-3 text-xs">
           <span class="text-slate-400">Symbol size (pt)</span>
-          <input id="gpsSize" type="number" min="1" max="60" step="1" value="12" class="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white font-mono text-right focus:border-emerald-500">
+          <input id="gpsSize" type="number" min="1" max="60" step="1" value="12" class="w-16 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white font-mono text-right focus:border-emerald-500">
+          <label class="flex items-center gap-1.5 ml-auto cursor-pointer">
+            <input id="chkGpsLabel" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
+            <span class="text-slate-200">Plot ID</span>
+          </label>
         </div>
 
         <input id="gpsFile" type="file" class="block w-full text-[11px] text-slate-300 cursor-pointer file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-700 file:text-emerald-300 hover:file:bg-slate-600">
@@ -604,11 +621,17 @@
       if (gpsLayer) { map.removeLayer(gpsLayer); gpsLayer = null; }
       if (!document.getElementById('chkGps').checked || gpsStations.length === 0) return;
       const radius = Math.max(2, getGpsSize() / 2);
+      const showLabels = document.getElementById('chkGpsLabel').checked;
       gpsLayer = L.layerGroup(
         gpsStations.map(s =>
           L.circleMarker([s.lat, s.lon], {
             radius: radius, color: '#ffffff', weight: 1, fillColor: '#2563eb', fillOpacity: 1
-          }).bindTooltip(s.id)
+          }).bindTooltip(
+            s.id,
+            showLabels
+              ? { permanent: true, direction: 'top', offset: [0, -radius], className: 'gps-label' }
+              : {}
+          )
         )
       ).addTo(map);
     }
@@ -639,6 +662,7 @@
     });
     document.getElementById('chkGps').addEventListener('change', updateGpsOverlay);
     document.getElementById('gpsSize').addEventListener('input', updateGpsOverlay);
+    document.getElementById('chkGpsLabel').addEventListener('change', updateGpsOverlay);
 
     // --- FAULT LAYERS DI PETA INTERAKTIF ---
     // File data harus berada satu folder dengan index.html (root repo)
@@ -741,10 +765,82 @@
       if (chk.checked) pusgenLayer.addTo(map);
     }
 
+    // --- GUNUNG API HOLOSEN (GVP) DI PETA INTERAKTIF ---
+    const VOLCANO_URLS = [
+      'volcanoes-2026-11-06_20-20-10_%2B0700.tsv',
+      'volcanoes-2026-11-06_20-20-10_+0700.tsv',
+      'https://raw.githubusercontent.com/ditafaith/pygmterator/main/volcanoes-2026-11-06_20-20-10_%2B0700.tsv'
+    ];
+    let volcanoLayer = null;
+
+    // Kolom dibaca berdasarkan nama header: Volcano Name, Country, Latitude, Longitude, Elevation (m), Type, Status, Last Known Eruption
+    function parseVolcanoTsv(text) {
+      const rows = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim() !== '');
+      if (rows.length < 2) return [];
+      const clean = v => (v ?? '').trim().replace(/^"|"$/g, '');
+      const header = rows[0].split('\t').map(clean);
+      const col = name => header.findIndex(h => h.toLowerCase() === name.toLowerCase());
+      const iLat = col('Latitude'), iLon = col('Longitude');
+      if (iLat < 0 || iLon < 0) return [];
+      const iName = col('Volcano Name'), iCountry = col('Country'), iElev = col('Elevation (m)');
+      const iType = col('Type'), iStatus = col('Status'), iLast = col('Last Known Eruption');
+      const pick = (c, i) => (i >= 0 ? clean(c[i]) : '');
+      const out = [];
+      rows.slice(1).forEach(line => {
+        const c = line.split('\t');
+        const lat = parseFloat(clean(c[iLat]));
+        const lon = parseFloat(clean(c[iLon]));
+        if (!isFinite(lat) || !isFinite(lon)) return;
+        out.push({
+          lat, lon,
+          name: pick(c, iName), country: pick(c, iCountry), elev: pick(c, iElev),
+          type: pick(c, iType), status: pick(c, iStatus), last: pick(c, iLast)
+        });
+      });
+      return out;
+    }
+
+    async function updateVolcanoLayer() {
+      const chk = document.getElementById('chkVolcanoes');
+      if (!chk.checked) {
+        if (volcanoLayer) map.removeLayer(volcanoLayer);
+        return;
+      }
+      if (!volcanoLayer) {
+        try {
+          const volcanoes = await fetchFirst(VOLCANO_URLS, r => r.text().then(parseVolcanoTsv));
+          if (volcanoes.length === 0) throw new Error('kosong');
+          const icon = L.divIcon({
+            className: 'volcano-icon',
+            html: '<svg width="14" height="14" viewBox="0 0 14 14"><polygon points="7,1 13,13 1,13" fill="#cd0000" stroke="#000" stroke-width="1"/></svg>',
+            iconSize: [14, 14],
+            iconAnchor: [7, 8]
+          });
+          volcanoLayer = L.layerGroup(volcanoes.map(v =>
+            L.marker([v.lat, v.lon], { icon }).bindTooltip(
+              `<b>${escapeHtml(v.name)}</b>` +
+              (v.country ? `<br>${escapeHtml(v.country)}` : '') +
+              (v.type ? `<br>Type: ${escapeHtml(v.type)}` : '') +
+              (v.elev ? `<br>Elevation: ${escapeHtml(v.elev)} m` : '') +
+              (v.status ? `<br>Status: ${escapeHtml(v.status)}` : '') +
+              (v.last ? `<br>Last eruption: ${escapeHtml(v.last)}` : ''),
+              { direction: 'top', offset: [0, -6] }
+            )
+          ));
+        } catch (e) {
+          chk.checked = false;
+          alert('Gagal memuat data Holocene Volcanoes.\nPastikan file .tsv gunung api berada satu folder dengan index.html di repo.');
+          return;
+        }
+      }
+      if (chk.checked) volcanoLayer.addTo(map);
+    }
+
+    document.getElementById('chkVolcanoes').addEventListener('change', updateVolcanoLayer);
     document.getElementById('chkFaults').addEventListener('change', updateBirdLayer);
     document.getElementById('chkPusgen').addEventListener('change', updatePusgenLayer);
     // Sinkronkan jika browser memulihkan status centang saat halaman dimuat ulang
-    window.addEventListener('load', () => { updateBirdLayer(); updatePusgenLayer(); });
+    window.addEventListener('load', () => { updateBirdLayer(); updatePusgenLayer(); updateVolcanoLayer(); });
 
     // --- 2. GENERATE REPRODUCIBLE PYGMT SCRIPT ---
     function updatePyGMTCode() {
@@ -764,6 +860,7 @@
       const showVolcanoes = document.getElementById('chkVolcanoes').checked;
       const showGps = document.getElementById('chkGps').checked && gpsStations.length > 0;
       const gpsSize = getGpsSize();
+      const showGpsLabels = document.getElementById('chkGpsLabel').checked;
       const showContours = document.getElementById('chkContours').checked;
       const showAsc = document.getElementById('chkAsc').checked;
       const showDsc = document.getElementById('chkDsc').checked;
@@ -901,7 +998,17 @@ fig.plot(
     fill="blue",
     pen="0.6p,black"
 )
-` : ''}${showScalebar ? `
+${showGpsLabels ? `fig.text(
+    x=gps_lon,
+    y=gps_lat,
+    text=[s[0] for s in gps_stations],
+    justify="BC",
+    offset="0/${(gpsSize / 2 + 2).toFixed(1)}p",
+    font="8p,Helvetica-Bold,black",
+    fill="white@30",
+    clearance="0.5p/0.5p"
+)
+` : ''}` : ''}${showScalebar ? `
 # 8. Scalebar Southwest (Pojok Kiri Bawah) dengan Transparansi 60%
 fig.basemap(
     map_scale="x0.6c/0.6c+c${minLat}+w${scaleKm}k+lkm+f+jBL",
@@ -956,6 +1063,7 @@ print("Peta selesai digenerate pada resolusi 300 DPI.")
         showContours: document.getElementById('chkContours').checked,
         showGps: document.getElementById('chkGps').checked,
         gpsSize: getGpsSize(),
+        gpsLabels: document.getElementById('chkGpsLabel').checked,
         gpsStations: gpsStations,
         showAsc: document.getElementById('chkAsc').checked,
         ascCoords: asc,
@@ -989,6 +1097,9 @@ print("Peta selesai digenerate pada resolusi 300 DPI.")
 
           modal.classList.remove('hidden');
           modal.classList.add('flex');
+          if (Array.isArray(resData.warnings) && resData.warnings.length > 0) {
+            setTimeout(() => alert('Catatan dari server:\n- ' + resData.warnings.join('\n- ')), 300);
+          }
         } else {
           alert('PyGMT Error: ' + resData.message);
         }

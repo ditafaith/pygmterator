@@ -86,11 +86,13 @@ def index():
     return jsonify({
         "status": "online",
         "service": "PyGMT Cartographic API",
-        "volcanoes_loaded": len(df_volcanoes)
+        "volcanoes_loaded": len(df_volcanoes),
+        "pusgen_segments_loaded": len(pusgen_faults)
     }), 200
 @app.route('/api/generate-map', methods=['POST'])
 def generate_map():
     tmp_files = []  # file sementara yang dihapus di akhir request
+    warnings = []   # catatan untuk pengguna (layer yang diminta tapi tidak bisa digambar)
     try:
         data = request.json
         
@@ -124,6 +126,7 @@ def generate_map():
 
         # GPS Stations (format dari frontend: [{"id": "bako", "lat": -6.309, "lon": 106.203}, ...])
         show_gps = data.get('showGps', False)
+        show_gps_labels = bool(data.get('gpsLabels', False))
         gps_stations = data.get('gpsStations', []) or []
         try:
             gps_size = float(data.get('gpsSize', 12))
@@ -247,6 +250,8 @@ def generate_map():
                 pass
 
         # D2. Patahan PusGeN 2024 (hanya segmen yang beririsan dengan region peta)
+        if show_pusgen and not pusgen_faults:
+            warnings.append("Layer PusGeN tidak digambar: file pusgen_fault_2024.txt tidak ditemukan/terbaca di server.")
         if show_pusgen and pusgen_faults:
             segs_in = [
                 sg for sg in pusgen_faults
@@ -262,8 +267,12 @@ def generate_map():
                     pusgen_path = tmp_f.name
                 tmp_files.append(pusgen_path)
                 fig.plot(data=pusgen_path, pen="1p,magenta3")
+            else:
+                warnings.append("Tidak ada segmen patahan PusGeN pada region peta ini.")
 
         # E. Gunung Api Holosen (Database GVP)
+        if show_volcanoes and df_volcanoes.empty:
+            warnings.append("Layer gunung api tidak digambar: database GVP tidak terbaca di server.")
         if show_volcanoes and not df_volcanoes.empty:
             mask = (
                 (df_volcanoes['Longitude'] >= min_lon) & 
@@ -283,7 +292,7 @@ def generate_map():
 
         # E2. Stasiun GPS: lingkaran biru (ukuran dalam point)
         if show_gps and gps_stations:
-            gps_lon, gps_lat = [], []
+            gps_lon, gps_lat, gps_ids = [], [], []
             for st in gps_stations:
                 try:
                     st_lat = float(st['lat'])
@@ -293,6 +302,8 @@ def generate_map():
                 if min_lon <= st_lon <= max_lon and min_lat <= st_lat <= max_lat:
                     gps_lon.append(st_lon)
                     gps_lat.append(st_lat)
+                    # '@' dan '\\' punya arti khusus di teks GMT
+                    gps_ids.append(str(st.get('id', '')).replace('\\', '').replace('@', '@@'))
             if gps_lon:
                 fig.plot(
                     x=gps_lon,
@@ -301,6 +312,20 @@ def generate_map():
                     fill="blue",
                     pen="0.6p,black"
                 )
+                # Label ID tepat di atas titik (tepi bawah teks = 2 pt di atas lingkaran)
+                if show_gps_labels:
+                    fig.text(
+                        x=gps_lon,
+                        y=gps_lat,
+                        text=gps_ids,
+                        justify="BC",
+                        offset=f"0/{gps_size / 2 + 2:g}p",
+                        font="8p,Helvetica-Bold,black",
+                        fill="white@30",
+                        clearance="0.5p/0.5p"
+                    )
+            else:
+                warnings.append("Tidak ada stasiun GPS yang berada di dalam region peta.")
 
         # F. Scalebar Southwest (Pojok Kiri Bawah) dengan Transparansi 60%
         if show_scalebar:
@@ -330,7 +355,8 @@ def generate_map():
 
         return jsonify({
             "status": "success",
-            "image_base64": f"data:image/png;base64,{encoded_img}"
+            "image_base64": f"data:image/png;base64,{encoded_img}",
+            "warnings": warnings
         })
 
     except Exception as e:
