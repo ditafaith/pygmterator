@@ -1,5 +1,6 @@
 import os
 import io
+import tempfile
 import base64
 import pandas as pd
 import numpy as np
@@ -12,6 +13,8 @@ CORS(app)
 
 # Database Gunung Api GVP
 VOLCANO_FILE = "volcanoes-2026-11-06_20-20-10_+0700.tsv"
+FAULT_FILE = "PB2002_boundaries.json"
+FAULT_URL = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json"
 
 def load_volcano_data():
     if os.path.exists(VOLCANO_FILE):
@@ -114,14 +117,38 @@ def generate_map():
         grid = pygmt.datasets.load_earth_relief(resolution=res, region=region)
         cmap_name = "geo" if cpt == "terrain" else ("bathy" if cpt == "bathymetry" else "relief")
 
-        fig.grdimage(
-            grid=grid,
-            region=region,
-            projection=proj,
-            cmap=cmap_name,
-            shading=True,
-            frame=fig_frame
-        )
+        is_hillshade = (cpt == "hillshade")
+        cpt_path = None
+
+        if is_hillshade:
+            # Hillshade abu-abu muda khusus daratan (laut dibiarkan transparan/kosong)
+            # Intensitas hillshade (arah cahaya dari barat laut, azimuth 315)
+            shade = pygmt.grdgradient(grid=grid, azimuth=315, normalize="t1")
+            # Sembunyikan area laut (elevasi < 0 m)
+            shade_land = shade.where(grid.values >= 0)
+
+            # CPT gray: intensitas 0 -> abu-abu muda (~194/255), lereng terang -> putih, lereng gelap -> abu tua
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".cpt", delete=False) as tmp_cpt:
+                tmp_cpt.write("-3.2\t0\t1.0\t255\nB\t0\nF\t255\nN\t255\n")
+                cpt_path = tmp_cpt.name
+
+            fig.grdimage(
+                grid=shade_land,
+                region=region,
+                projection=proj,
+                cmap=cpt_path,
+                nan_transparent=True,
+                frame=fig_frame
+            )
+        else:
+            fig.grdimage(
+                grid=grid,
+                region=region,
+                projection=proj,
+                cmap=cmap_name,
+                shading=True,
+                frame=fig_frame
+            )
 
        # B. Kontur Elevasi: Interval 200m, Anotasi Angka Bulat, Khusus Darat (>= 200m)
         if show_contours:
@@ -146,21 +173,21 @@ def generate_map():
             ul, ur, lr, ll = asc_coords.get('ul'), asc_coords.get('ur'), asc_coords.get('lr'), asc_coords.get('ll')
             asc_x = [normalize_lon(ul[0]), normalize_lon(ur[0]), normalize_lon(lr[0]), normalize_lon(ll[0]), normalize_lon(ul[0])]
             asc_y = [ul[1], ur[1], lr[1], ll[1], ul[1]]
-            fig.plot(x=asc_x, y=asc_y, pen="1.8p,cyan3", fill="cyan3@80")
-            fig.text(x=float(np.mean(asc_x[:4])), y=float(np.mean(asc_y[:4])) + 0.04, text=f"Asc: {asc_frame}", font="9p,Helvetica-Bold,cyan4")
+            fig.plot(x=asc_x, y=asc_y, pen="1.8p,red", fill="red@80")
+            fig.text(x=float(np.mean(asc_x[:4])), y=float(np.mean(asc_y[:4])) + 0.04, text=f"Asc: {asc_frame}", font="9p,Helvetica-Bold,red3")
 
         if show_dsc and dsc_coords:
             ul, ur, lr, ll = dsc_coords.get('ul'), dsc_coords.get('ur'), dsc_coords.get('lr'), dsc_coords.get('ll')
             dsc_x = [normalize_lon(ul[0]), normalize_lon(ur[0]), normalize_lon(lr[0]), normalize_lon(ll[0]), normalize_lon(ul[0])]
             dsc_y = [ul[1], ur[1], lr[1], ll[1], ul[1]]
-            fig.plot(x=dsc_x, y=dsc_y, pen="1.8p,magenta3,--", fill="magenta3@80")
-            fig.text(x=float(np.mean(dsc_x[:4])), y=float(np.mean(dsc_y[:4])) - 0.04, text=f"Dsc: {dsc_frame}", font="9p,Helvetica-Bold,magenta4")
+            fig.plot(x=dsc_x, y=dsc_y, pen="1.8p,blue", fill="blue@80")
+            fig.text(x=float(np.mean(dsc_x[:4])), y=float(np.mean(dsc_y[:4])) - 0.04, text=f"Dsc: {dsc_frame}", font="9p,Helvetica-Bold,blue3")
 
         # D. Sesar Aktif (Bird, 2003)
         if show_faults:
             try:
                 fig.plot(
-                    data="https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json",
+                    data=FAULT_FILE if os.path.exists(FAULT_FILE) else FAULT_URL,
                     pen="1.8p,red3"
                 )
             except Exception:
@@ -192,19 +219,27 @@ def generate_map():
             )
 
         # G. Colorbar dengan Angka Bulat Utuh (Tanpa Desimal/Koma)
-        cbar_spec = "JMR+w8c/0.5c+o1.0c/0c" if cbar_pos == "right" else "JBC+w10c/0.5c+o0c/1.4c+h"
-        fig.colorbar(
-            position=cbar_spec,
-            box=False,
-            frame=["a1000", "x+lElevation", "y+lm"]
-        )
+        if not is_hillshade:
+            cbar_spec = "JMR+w8c/0.5c+o1.0c/0c" if cbar_pos == "right" else "JBC+w10c/0.5c+o0c/1.4c+h"
+            fig.colorbar(
+                position=cbar_spec,
+                box=False,
+                frame=["a1000", "x+lElevation", "y+lm"]
+            )
 
         # H. Simpan Figure Resolusi 300 DPI
-        output_png = "temp_output_300dpi.png"
-        fig.savefig(output_png, dpi=300)
+        # PNG transparan (latar belakang di luar peta transparan); JPEG dibuat di frontend dengan latar putih
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_png:
+            output_png = tmp_png.name
+        fig.savefig(output_png, dpi=300, transparent=True)
 
         with open(output_png, "rb") as f:
             encoded_img = base64.b64encode(f.read()).decode('utf-8')
+
+        # Bersihkan file sementara
+        for tmp in (output_png, cpt_path):
+            if tmp and os.path.exists(tmp):
+                os.remove(tmp)
 
         return jsonify({
             "status": "success",
