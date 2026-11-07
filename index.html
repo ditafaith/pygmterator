@@ -15,6 +15,9 @@
   <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.2/dist/leaflet-geoman.css" />
   <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.2/dist/leaflet-geoman.min.js"></script>
 
+  <!-- JSZip (membaca file KMZ hasil MintPy) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
     body { font-family: 'Inter', sans-serif; }
@@ -43,6 +46,20 @@
       color: #f8fafc;
       transform: scale(1.05);
     }
+    /* Tool Zoom Box (kaca pembesar) */
+    .leaflet-control-home.active { background: #f59e0b; color: #0f172a; border-color: #fbbf24; }
+    .leaflet-control-home.active:hover { background: #fbbf24; color: #0f172a; }
+    .zoombox-mode, .zoombox-mode .leaflet-interactive { cursor: crosshair !important; }
+    /* Legend colorbar hasil InSAR (KMZ) */
+    .insar-legend {
+      background: rgba(255, 255, 255, 0.88);
+      padding: 4px 6px;
+      border-radius: 6px;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+      display: flex;
+      gap: 6px;
+    }
+    .insar-legend img { display: block; max-height: 40vh; width: auto; }
     /* Label ID stasiun GPS */
     .leaflet-tooltip.gps-label {
       background: rgba(255, 255, 255, 0.78);
@@ -117,7 +134,9 @@
         <div class="mt-2.5 flex flex-wrap gap-1.5">
           <button id="presetSumatra" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Sumatra</button>
           <button id="presetJava" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Java</button>
-          <button id="presetFlores" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Flores</button>
+          <button id="presetFlores" title="Labuan Bajo - Lewoleba" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Flores</button>
+          <button id="presetSulawesi" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Sulawesi</button>
+          <button id="presetHalmahera" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Halmahera</button>
           <button id="presetPapua" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Papua</button>
         </div>
       </section>
@@ -216,6 +235,32 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- Visualization InSAR Results (KMZ overlay) -->
+      <section class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60 space-y-2.5">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+          <span class="flex items-center gap-2"><i class="fa-solid fa-satellite-dish text-emerald-400"></i> Visualization InSAR Results</span>
+          <span class="text-[10px] text-slate-400">KMZ</span>
+        </label>
+
+        <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-slate-800 cursor-pointer text-xs">
+          <input id="chkInsarResult" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
+          <span class="text-slate-200">Show InSAR results (overlay on map)</span>
+        </label>
+
+        <input id="insarFile" type="file" accept=".kmz" class="block w-full text-[11px] text-slate-300 cursor-pointer file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-700 file:text-emerald-300 hover:file:bg-slate-600">
+
+        <div class="flex items-center gap-2 text-xs">
+          <span class="text-slate-400 shrink-0">Opacity</span>
+          <input id="insarOpacity" type="range" min="10" max="100" value="80" class="flex-1 accent-emerald-500">
+          <span id="insarOpacityVal" class="w-9 text-right font-mono text-slate-300">80%</span>
+        </div>
+
+        <button id="btnInsarZoom" type="button" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">
+          <i class="fa-solid fa-magnifying-glass-plus mr-1"></i> Zoom to result
+        </button>
+        <p id="insarStatus" class="text-[10px] text-slate-400 leading-relaxed">Pilih file .kmz hasil MintPy (contoh: velocity.kmz).</p>
       </section>
 
       <!-- Cartography Layout Settings -->
@@ -465,6 +510,96 @@
     });
     map.addControl(new HomeControl());
 
+    // --- TOOL ZOOM BOX (kaca pembesar): klik tool, lalu drag kotak di peta untuk zoom ke area tersebut ---
+    let zoomBoxActive = false;
+    let zoomBoxButton = null;
+    let zoomStart = null;
+    let zoomEnd = null;
+    let zoomRect = null;
+
+    function onZoomMove(e) {
+      zoomEnd = map.mouseEventToLatLng(e);
+      if (zoomRect) zoomRect.setBounds(L.latLngBounds(zoomStart, zoomEnd));
+    }
+
+    function onZoomUp(e) {
+      zoomEnd = map.mouseEventToLatLng(e);
+      const bounds = L.latLngBounds(zoomStart, zoomEnd);
+      const sw = map.latLngToContainerPoint(bounds.getSouthWest());
+      const ne = map.latLngToContainerPoint(bounds.getNorthEast());
+      const dragged = Math.abs(ne.x - sw.x) > 8 && Math.abs(sw.y - ne.y) > 8;  // abaikan klik biasa
+      setZoomBoxMode(false);
+      if (dragged) map.fitBounds(bounds);
+    }
+
+    function cancelZoomDrag() {
+      document.removeEventListener('pointermove', onZoomMove);
+      document.removeEventListener('pointerup', onZoomUp);
+      if (zoomRect) { map.removeLayer(zoomRect); zoomRect = null; }
+      zoomStart = null;
+      zoomEnd = null;
+    }
+
+    function setZoomBoxMode(on) {
+      zoomBoxActive = on;
+      if (zoomBoxButton) zoomBoxButton.classList.toggle('active', on);
+      const el = map.getContainer();
+      el.classList.toggle('zoombox-mode', on);
+      el.style.touchAction = on ? 'none' : '';
+      if (on) {
+        // Matikan tool gambar/edit Geoman agar tidak bentrok
+        try {
+          map.pm.disableDraw();
+          map.pm.disableGlobalEditMode();
+          map.pm.disableGlobalRemovalMode();
+          map.pm.disableGlobalDragMode();
+        } catch (err) { /* abaikan */ }
+        map.dragging.disable();
+      } else {
+        cancelZoomDrag();
+        map.dragging.enable();
+      }
+    }
+
+    map.getContainer().addEventListener('pointerdown', (e) => {
+      if (!zoomBoxActive || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      if (e.target.closest('.leaflet-control')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      zoomStart = map.mouseEventToLatLng(e);
+      zoomEnd = zoomStart;
+      zoomRect = L.rectangle([zoomStart, zoomStart], {
+        color: '#facc15', weight: 1.5, dashArray: '5 4', fillColor: '#facc15', fillOpacity: 0.12, interactive: false
+      }).addTo(map);
+      document.addEventListener('pointermove', onZoomMove);
+      document.addEventListener('pointerup', onZoomUp, { once: true });
+    }, true);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && zoomBoxActive) setZoomBoxMode(false);
+    });
+
+    const ZoomBoxControl = L.Control.extend({
+      options: { position: 'topleft' },
+      onAdd: function() {
+        const container = L.DomUtil.create('div', 'leaflet-bar');
+        const button = L.DomUtil.create('a', 'leaflet-control-home', container);
+        button.innerHTML = '<i class="fa-solid fa-magnifying-glass-plus"></i>';
+        button.title = 'Zoom to area: klik tool ini, lalu drag kotak di peta (Esc untuk batal)';
+        button.href = '#';
+        zoomBoxButton = button;
+
+        L.DomEvent.disableClickPropagation(button);
+        L.DomEvent.on(button, 'click', function(e) {
+          L.DomEvent.preventDefault(e);
+          setZoomBoxMode(!zoomBoxActive);
+        });
+        return container;
+      }
+    });
+    map.addControl(new ZoomBoxControl());
+    map.on('pm:drawstart', () => { if (zoomBoxActive) setZoomBoxMode(false); });
+
     map.pm.addControls({
       position: 'topleft',
       drawCircle: false,
@@ -568,7 +703,9 @@
     // Preset Buttons
     document.getElementById('presetSumatra').addEventListener('click', () => setCoords(95.0, 106.0, -6.0, 6.0));
     document.getElementById('presetJava').addEventListener('click', () => setCoords(105.0, 115.0, -9.0, -5.5));
-    document.getElementById('presetFlores').addEventListener('click', () => setCoords(121.5, 124.5, -9.2, -7.6));
+    document.getElementById('presetFlores').addEventListener('click', () => setCoords(119.6, 123.8, -9.2, -7.6));
+    document.getElementById('presetSulawesi').addEventListener('click', () => setCoords(118.5, 125.5, -6.0, 2.0));
+    document.getElementById('presetHalmahera').addEventListener('click', () => setCoords(127.0, 129.0, -0.8, 2.6));
     document.getElementById('presetPapua').addEventListener('click', () => setCoords(129.5, 141.5, -9.5, -0.5));
 
     function setCoords(minX, maxX, minY, maxY) {
@@ -663,6 +800,172 @@
     document.getElementById('chkGps').addEventListener('change', updateGpsOverlay);
     document.getElementById('gpsSize').addEventListener('input', updateGpsOverlay);
     document.getElementById('chkGpsLabel').addEventListener('change', updateGpsOverlay);
+
+    // --- VISUALIZATION INSAR RESULTS: KMZ (MintPy) SEBAGAI OVERLAY ---
+    // KMZ = zip berisi doc.kml + gambar. GroundOverlay -> imageOverlay di peta, ScreenOverlay -> legend colorbar
+    let insarData = null;      // { overlays, legends, blobUrls } dari KMZ terakhir
+    let insarGroup = null;
+    let insarLegend = null;
+    let insarBounds = null;
+
+    function mimeFromName(name) {
+      const ext = name.split('.').pop().toLowerCase();
+      return { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' }[ext] || 'image/png';
+    }
+
+    function findZipEntry(zip, href) {
+      let clean = href.trim();
+      try { clean = decodeURIComponent(clean); } catch (e) { /* pakai apa adanya */ }
+      clean = clean.replace(/^\.\//, '');
+      if (zip.file(clean)) return zip.file(clean);
+      const base = clean.split('/').pop().toLowerCase();
+      return zip.file(/.*/).find(f => f.name.split('/').pop().toLowerCase() === base) || null;
+    }
+
+    async function zipImageUrl(zip, href, blobUrls) {
+      const entry = findZipEntry(zip, href);
+      if (!entry) return null;
+      const bytes = await entry.async('uint8array');
+      const url = URL.createObjectURL(new Blob([bytes], { type: mimeFromName(entry.name) }));
+      blobUrls.push(url);
+      return url;
+    }
+
+    function kmlText(parent, tag) {
+      const el = parent.getElementsByTagName(tag)[0];
+      return el ? el.textContent.trim() : '';
+    }
+
+    async function readKmz(file) {
+      if (typeof JSZip === 'undefined') throw new Error('Library JSZip gagal dimuat (periksa koneksi internet).');
+      const blobUrls = [];
+      try {
+        const zip = await JSZip.loadAsync(file);
+        const kmlFiles = zip.file(/\.kml$/i);
+        const kmlEntry = kmlFiles.find(f => f.name.toLowerCase().endsWith('doc.kml')) || kmlFiles[0];
+        if (!kmlEntry) throw new Error('File .kml tidak ditemukan di dalam KMZ.');
+        const xml = new DOMParser().parseFromString(await kmlEntry.async('string'), 'application/xml');
+        if (xml.getElementsByTagName('parsererror').length) throw new Error('Isi KML tidak valid.');
+
+        const overlays = [];
+        let rotated = false;
+        for (const go of Array.from(xml.getElementsByTagName('GroundOverlay'))) {
+          const href = kmlText(go, 'href');
+          const north = parseFloat(kmlText(go, 'north')), south = parseFloat(kmlText(go, 'south'));
+          const east = parseFloat(kmlText(go, 'east')), west = parseFloat(kmlText(go, 'west'));
+          if (!href || ![north, south, east, west].every(isFinite)) continue;
+          const url = await zipImageUrl(zip, href, blobUrls);
+          if (!url) continue;
+          const rot = parseFloat(kmlText(go, 'rotation'));
+          if (isFinite(rot) && rot !== 0) rotated = true;
+          overlays.push({ url, bounds: [[south, west], [north, east]] });
+        }
+
+        const legends = [];
+        for (const so of Array.from(xml.getElementsByTagName('ScreenOverlay'))) {
+          const href = kmlText(so, 'href');
+          if (!href) continue;
+          const url = await zipImageUrl(zip, href, blobUrls);
+          if (!url) continue;
+          const sizeEl = so.getElementsByTagName('size')[0];
+          const sx = sizeEl ? parseFloat(sizeEl.getAttribute('x')) : 0;
+          const sy = sizeEl ? parseFloat(sizeEl.getAttribute('y')) : 0;
+          legends.push({ url, w: (sy > 0 ? 0 : (sx > 0 ? sx : 0)), h: (sy > 0 ? sy : (sx > 0 ? 0 : 250)) });
+        }
+        return { overlays, legends, blobUrls, rotated };
+      } catch (err) {
+        blobUrls.forEach(u => URL.revokeObjectURL(u));
+        throw err;
+      }
+    }
+
+    function removeInsarFromMap() {
+      if (insarGroup) { map.removeLayer(insarGroup); insarGroup = null; }
+      if (insarLegend) { map.removeControl(insarLegend); insarLegend = null; }
+    }
+
+    function updateInsarLayer() {
+      removeInsarFromMap();
+      insarBounds = null;
+      if (!document.getElementById('chkInsarResult').checked || !insarData) return;
+
+      const opacity = parseInt(document.getElementById('insarOpacity').value, 10) / 100;
+      insarGroup = L.layerGroup(insarData.overlays.map(o => {
+        const b = L.latLngBounds(o.bounds);
+        insarBounds = insarBounds ? insarBounds.extend(b) : b;
+        return L.imageOverlay(o.url, o.bounds, { opacity: opacity, interactive: false });
+      })).addTo(map);
+
+      if (insarData.legends.length > 0) {
+        const LegendControl = L.Control.extend({
+          options: { position: 'bottomleft' },
+          onAdd: function() {
+            const div = L.DomUtil.create('div', 'insar-legend');
+            insarData.legends.forEach(lg => {
+              const img = document.createElement('img');
+              img.src = lg.url;
+              img.alt = 'InSAR colorbar';
+              if (lg.h) img.style.height = lg.h + 'px';
+              if (lg.w) img.style.width = lg.w + 'px';
+              div.appendChild(img);
+            });
+            L.DomEvent.disableClickPropagation(div);
+            return div;
+          }
+        });
+        insarLegend = new LegendControl().addTo(map);
+      }
+    }
+
+    function zoomToInsar() {
+      if (insarBounds) map.fitBounds(insarBounds, { padding: [60, 60] });
+    }
+
+    document.getElementById('insarFile').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      const status = document.getElementById('insarStatus');
+      if (!file) return;
+      status.className = 'text-[10px] text-slate-400 leading-relaxed';
+      status.textContent = `Membaca ${file.name} ...`;
+      try {
+        const data = await readKmz(file);
+        if (data.overlays.length === 0) throw new Error('Tidak ada GroundOverlay (gambar) di dalam KMZ.');
+        removeInsarFromMap();
+        if (insarData) insarData.blobUrls.forEach(u => URL.revokeObjectURL(u));
+        insarData = data;
+        document.getElementById('chkInsarResult').checked = true;
+        updateInsarLayer();
+        zoomToInsar();
+        status.className = 'text-[10px] text-emerald-400 leading-relaxed';
+        status.textContent = `${file.name}: ${data.overlays.length} overlay` +
+          (data.legends.length ? `, ${data.legends.length} colorbar` : '') + ' dimuat.' +
+          (data.rotated ? ' Catatan: rotasi pada KML diabaikan.' : '');
+      } catch (err) {
+        status.className = 'text-[10px] text-red-400 leading-relaxed';
+        status.textContent = `Gagal memuat ${file.name}: ${err.message}`;
+      }
+    });
+
+    document.getElementById('chkInsarResult').addEventListener('change', (e) => {
+      const status = document.getElementById('insarStatus');
+      if (e.target.checked && !insarData) {
+        status.className = 'text-[10px] text-amber-400 leading-relaxed';
+        status.textContent = 'Belum ada file. Pilih file .kmz terlebih dahulu.';
+      }
+      updateInsarLayer();
+    });
+
+    document.getElementById('insarOpacity').addEventListener('input', (e) => {
+      document.getElementById('insarOpacityVal').textContent = e.target.value + '%';
+      if (insarGroup) insarGroup.eachLayer(l => l.setOpacity(parseInt(e.target.value, 10) / 100));
+    });
+
+    document.getElementById('btnInsarZoom').addEventListener('click', () => {
+      if (!insarData) return;
+      document.getElementById('chkInsarResult').checked = true;
+      if (!insarGroup) updateInsarLayer();
+      zoomToInsar();
+    });
 
     // --- FAULT LAYERS DI PETA INTERAKTIF ---
     // File data harus berada satu folder dengan index.html (root repo)

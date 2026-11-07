@@ -164,7 +164,7 @@ def generate_map():
         lat_span = abs(max_lat - min_lat)
         if lon_span <= 1.5 and lat_span <= 1.5:
             res = "01s"  # Resolusi detail ~30 meter
-        elif lon_span <= 3.5 and lat_span <= 3.5:
+        elif lon_span <= 4.5 and lat_span <= 3.5:
             res = "03s"
         else:
             res = "15s"
