@@ -14,6 +14,7 @@ CORS(app)
 # Database Gunung Api GVP
 VOLCANO_FILE = "volcanoes-2026-11-06_20-20-10_+0700.tsv"
 FAULT_FILE = "PB2002_boundaries.json"
+PUSGEN_FILE = "pusgen_fault_2024.txt"
 FAULT_URL = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json"
 
 def load_volcano_data():
@@ -32,6 +33,46 @@ def load_volcano_data():
 df_volcanoes = load_volcano_data()
 print(f"Loaded {len(df_volcanoes)} volcanoes from GVP database.")
 
+def load_pusgen_faults():
+    """Baca patahan PusGeN: blok header KEY=VALUE + baris 'lon,lat,nilai', dipisah baris kosong."""
+    segments = []
+    if not os.path.exists(PUSGEN_FILE):
+        return segments
+
+    pts = []
+
+    def flush():
+        nonlocal pts
+        if len(pts) > 1:
+            lons = [p[0] for p in pts]
+            lats = [p[1] for p in pts]
+            segments.append({
+                "pts": pts,
+                "min_lon": min(lons), "max_lon": max(lons),
+                "min_lat": min(lats), "max_lat": max(lats),
+            })
+        pts = []
+
+    try:
+        with open(PUSGEN_FILE, encoding="utf-8", errors="replace") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or "=" in line:
+                    flush()
+                    continue
+                parts = line.split(",")
+                try:
+                    pts.append((float(parts[0]), float(parts[1])))
+                except (ValueError, IndexError):
+                    continue
+        flush()
+    except Exception as e:
+        print(f"Error loading PusGeN faults: {e}")
+    return segments
+
+pusgen_faults = load_pusgen_faults()
+print(f"Loaded {len(pusgen_faults)} PusGeN fault segments.")
+
 def normalize_lon(lon):
     """Menjamin bujur selalu berada dalam rentang [-180, 180] (mencegah bug +360 dari Leaflet)"""
     while lon > 180.0:
@@ -49,6 +90,7 @@ def index():
     }), 200
 @app.route('/api/generate-map', methods=['POST'])
 def generate_map():
+    tmp_files = []  # file sementara yang dihapus di akhir request
     try:
         data = request.json
         
@@ -78,6 +120,7 @@ def generate_map():
         show_faults = data.get('showFaults', False)
         show_volcanoes = data.get('showVolcanoes', False)
         show_contours = data.get('showContours', False)
+        show_pusgen = data.get('showPusgen', False)
 
         # GPS Stations (format dari frontend: [{"id": "bako", "lat": -6.309, "lon": 106.203}, ...])
         show_gps = data.get('showGps', False)
@@ -140,6 +183,7 @@ def generate_map():
             with tempfile.NamedTemporaryFile(mode="w", suffix=".cpt", delete=False) as tmp_cpt:
                 tmp_cpt.write("-3.2\t0\t1.0\t255\nB\t0\nF\t255\nN\t255\n")
                 cpt_path = tmp_cpt.name
+            tmp_files.append(cpt_path)
 
             fig.grdimage(
                 grid=shade_land,
@@ -202,6 +246,23 @@ def generate_map():
             except Exception:
                 pass
 
+        # D2. Patahan PusGeN 2024 (hanya segmen yang beririsan dengan region peta)
+        if show_pusgen and pusgen_faults:
+            segs_in = [
+                sg for sg in pusgen_faults
+                if sg["max_lon"] >= min_lon and sg["min_lon"] <= max_lon
+                and sg["max_lat"] >= min_lat and sg["min_lat"] <= max_lat
+            ]
+            if segs_in:
+                with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp_f:
+                    for sg in segs_in:
+                        tmp_f.write(">\n")
+                        for lon, lat in sg["pts"]:
+                            tmp_f.write(f"{lon:.5f} {lat:.5f}\n")
+                    pusgen_path = tmp_f.name
+                tmp_files.append(pusgen_path)
+                fig.plot(data=pusgen_path, pen="1p,magenta3")
+
         # E. Gunung Api Holosen (Database GVP)
         if show_volcanoes and not df_volcanoes.empty:
             mask = (
@@ -261,15 +322,11 @@ def generate_map():
         # PNG transparan (latar belakang di luar peta transparan); JPEG dibuat di frontend dengan latar putih
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_png:
             output_png = tmp_png.name
+        tmp_files.append(output_png)
         fig.savefig(output_png, dpi=300, transparent=True)
 
         with open(output_png, "rb") as f:
             encoded_img = base64.b64encode(f.read()).decode('utf-8')
-
-        # Bersihkan file sementara
-        for tmp in (output_png, cpt_path):
-            if tmp and os.path.exists(tmp):
-                os.remove(tmp)
 
         return jsonify({
             "status": "success",
@@ -280,6 +337,13 @@ def generate_map():
         import traceback
         traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        for tmp in tmp_files:
+            try:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+            except OSError:
+                pass
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5001, debug=True)

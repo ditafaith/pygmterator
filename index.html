@@ -284,8 +284,8 @@
 
         <input id="gpsFile" type="file" class="block w-full text-[11px] text-slate-300 cursor-pointer file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-700 file:text-emerald-300 hover:file:bg-slate-600">
         <p id="gpsStatus" class="text-[10px] text-slate-400 leading-relaxed">
-          Format : <span class="font-mono text-slate-300">ID lat lon</span><br>
-          Example: <span class="font-mono text-slate-300">bako -6.491 106.849</span>
+          Format tiap baris: <span class="font-mono text-slate-300">ID lat lon</span><br>
+          Contoh: <span class="font-mono text-slate-300">bako -6.309 106.203</span>
         </p>
       </section>
 
@@ -298,7 +298,11 @@
         <div class="space-y-1.5 text-xs">
           <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-slate-800 cursor-pointer">
             <input id="chkFaults" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
-            <span class="text-slate-200">Active Faults (Bird, 2003 / PUSGEN)</span>
+            <span class="text-slate-200">Active Faults (Bird, 2003)</span>
+          </label>
+          <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-slate-800 cursor-pointer">
+            <input id="chkPusgen" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
+            <span class="text-slate-200">Faults (PusGeN 2024)</span>
           </label>
           <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-slate-800 cursor-pointer">
             <input id="chkVolcanoes" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
@@ -620,7 +624,7 @@
         if (stations.length > 0) {
           document.getElementById('chkGps').checked = true;
           status.className = 'text-[10px] text-emerald-400 leading-relaxed';
-          status.textContent = `${file.name}: ${stations.length} station` + (skipped ? `, ${skipped} baris dilewati.` : '.');
+          status.textContent = `${file.name}: ${stations.length} stasiun dimuat` + (skipped ? `, ${skipped} baris dilewati.` : '.');
         } else {
           status.className = 'text-[10px] text-red-400 leading-relaxed';
           status.textContent = `${file.name}: tidak ada baris valid. Gunakan format "ID lat lon".`;
@@ -636,6 +640,112 @@
     document.getElementById('chkGps').addEventListener('change', updateGpsOverlay);
     document.getElementById('gpsSize').addEventListener('input', updateGpsOverlay);
 
+    // --- FAULT LAYERS DI PETA INTERAKTIF ---
+    // File data harus berada satu folder dengan index.html (root repo)
+    const BIRD_URLS = [
+      'PB2002_boundaries.json',
+      'https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json'
+    ];
+    const PUSGEN_URL = 'pusgen_fault_2024.txt';
+    let birdLayer = null;
+    let pusgenLayer = null;
+
+    async function fetchFirst(urls, parse) {
+      for (const u of urls) {
+        try {
+          const r = await fetch(u);
+          if (r.ok) return await parse(r);
+        } catch (e) { /* coba sumber berikutnya */ }
+      }
+      throw new Error('Data tidak dapat dimuat');
+    }
+
+    function escapeHtml(t) {
+      return String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    async function updateBirdLayer() {
+      const chk = document.getElementById('chkFaults');
+      if (!chk.checked) {
+        if (birdLayer) map.removeLayer(birdLayer);
+        return;
+      }
+      if (!birdLayer) {
+        try {
+          const geojson = await fetchFirst(BIRD_URLS, r => r.json());
+          birdLayer = L.geoJSON(geojson, { style: { color: '#ef4444', weight: 2, opacity: 0.9 }, interactive: false });
+        } catch (e) {
+          chk.checked = false;
+          alert('Gagal memuat data Active Faults (Bird, 2003).');
+          return;
+        }
+      }
+      if (chk.checked) birdLayer.addTo(map);
+    }
+
+    // Format PusGeN: blok header KEY=VALUE, lalu baris "lon,lat,nilai"; antar blok dipisah baris kosong
+    function parsePusgen(text) {
+      const segments = [];
+      let meta = {};
+      let pts = [];
+      const flush = () => {
+        if (pts.length > 1) segments.push({ meta, pts });
+        if (pts.length) { meta = {}; pts = []; }
+      };
+      text.split(/\r?\n/).forEach(raw => {
+        const line = raw.trim();
+        if (!line) { flush(); return; }
+        if (line.includes('=')) {
+          flush();
+          const i = line.indexOf('=');
+          meta[line.slice(0, i)] = line.slice(i + 1);
+          return;
+        }
+        const parts = line.split(',');
+        const lon = parseFloat(parts[0]);
+        const lat = parseFloat(parts[1]);
+        if (isFinite(lon) && isFinite(lat)) pts.push([lat, lon]);
+      });
+      flush();
+      return segments;
+    }
+
+    async function updatePusgenLayer() {
+      const chk = document.getElementById('chkPusgen');
+      if (!chk.checked) {
+        if (pusgenLayer) map.removeLayer(pusgenLayer);
+        return;
+      }
+      if (!pusgenLayer) {
+        try {
+          const segments = await fetchFirst([PUSGEN_URL], r => r.text().then(parsePusgen));
+          if (segments.length === 0) throw new Error('kosong');
+          pusgenLayer = L.layerGroup(segments.map(sg => {
+            const m = sg.meta;
+            return L.polyline(sg.pts, { color: '#d946ef', weight: 1.8, opacity: 0.95 })
+              .bindTooltip(
+                `<b>${escapeHtml(m.Name || m.NAME)}</b>` +
+                (m.Segment ? `<br>Segment: ${escapeHtml(m.Segment)}` : '') +
+                (m.Type ? `<br>Type: ${escapeHtml(m.Type)}` : '') +
+                (m.Mmax ? `<br>Mmax: ${parseFloat(m.Mmax).toFixed(1)}` : '') +
+                (m.Sliprate_m ? `<br>Sliprate: ${parseFloat(m.Sliprate_m).toFixed(2)}` : ''),
+                { sticky: true }
+              );
+          }));
+        } catch (e) {
+          chk.checked = false;
+          alert('Gagal memuat data Faults PusGeN 2024.\nPastikan file pusgen_fault_2024.txt berada satu folder dengan index.html di repo.');
+          return;
+        }
+      }
+      if (chk.checked) pusgenLayer.addTo(map);
+    }
+
+    document.getElementById('chkFaults').addEventListener('change', updateBirdLayer);
+    document.getElementById('chkPusgen').addEventListener('change', updatePusgenLayer);
+    // Sinkronkan jika browser memulihkan status centang saat halaman dimuat ulang
+    window.addEventListener('load', () => { updateBirdLayer(); updatePusgenLayer(); });
+
     // --- 2. GENERATE REPRODUCIBLE PYGMT SCRIPT ---
     function updatePyGMTCode() {
       const minLon = normalizeLon(parseFloat(document.getElementById('minLon').value));
@@ -650,6 +760,7 @@
       const scaleKm = document.getElementById('scalebarKm').value;
 
       const showFaults = document.getElementById('chkFaults').checked;
+      const showPusgen = document.getElementById('chkPusgen').checked;
       const showVolcanoes = document.getElementById('chkVolcanoes').checked;
       const showGps = document.getElementById('chkGps').checked && gpsStations.length > 0;
       const gpsSize = getGpsSize();
@@ -740,6 +851,27 @@ fig.plot(
     data="https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json",
     pen="1.8p,red3"
 )
+` : ''}${showPusgen ? `
+# 6b. Faults PusGeN 2024 (file: pusgen_fault_2024.txt)
+def read_pusgen(path):
+    segments, pts = [], []
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or "=" in line:
+                if pts:
+                    segments.append(pts)
+                    pts = []
+                continue
+            lon, lat = line.split(",")[:2]
+            pts.append((float(lon), float(lat)))
+    if pts:
+        segments.append(pts)
+    return segments
+
+for seg in read_pusgen("pusgen_fault_2024.txt"):
+    xs, ys = zip(*seg)
+    fig.plot(x=list(xs), y=list(ys), pen="1p,magenta3")
 ` : ''}${showVolcanoes ? `
 # 7. Holocene Volcanoes (Smithsonian GVP Catalog)
 df_v = pd.read_csv("volcanoes-2026-11-06_20-20-10_+0700.tsv", sep="\\t").dropna(subset=['Latitude', 'Longitude'])
@@ -819,6 +951,7 @@ print("Peta selesai digenerate pada resolusi 300 DPI.")
         scalebarKm: parseInt(document.getElementById('scalebarKm').value),
         
         showFaults: document.getElementById('chkFaults').checked,
+        showPusgen: document.getElementById('chkPusgen').checked,
         showVolcanoes: document.getElementById('chkVolcanoes').checked,
         showContours: document.getElementById('chkContours').checked,
         showGps: document.getElementById('chkGps').checked,
