@@ -25,87 +25,86 @@
     .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
-
-    /* Header & Footer Custom Navajowhite */
-    .bg-navajowhite {
-      background-color: #FFDEAD !important;
-      color: #1e293b !important;
-    }
     
-    /* Horizontal Map Toolbar */
-    .map-top-bar {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(15, 23, 42, 0.88);
-      backdrop-filter: blur(6px);
-      padding: 6px 10px;
-      border-radius: 10px;
+    /* Tombol Home Custom di Leaflet */
+    .leaflet-control-home {
+      background: #0f172a;
       border: 1px solid #334155;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
-    }
-    .map-tool-btn {
-      background: #1e293b;
-      border: 1px solid #475569;
-      color: #f1f5f9;
-      padding: 5px 10px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 600;
+      color: #38bdf8;
+      width: 34px;
+      height: 34px;
       display: flex;
       align-items: center;
-      gap: 5px;
+      justify-content: center;
+      border-radius: 6px;
       cursor: pointer;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
       transition: all 0.2s;
     }
-    .map-tool-btn:hover {
-      background: #334155;
-      color: #38bdf8;
+    .leaflet-control-home:hover {
+      background: #1e293b;
+      color: #f8fafc;
+      transform: scale(1.05);
     }
-    .map-tool-btn.active {
-      background: #0284c7;
-      color: #ffffff;
-      border-color: #38bdf8;
-    }
-
-    /* Legend colorbar InSAR */
+    /* Tool Zoom Box (kaca pembesar) */
+    .leaflet-control-home.active { background: #f59e0b; color: #0f172a; border-color: #fbbf24; }
+    .leaflet-control-home.active:hover { background: #fbbf24; color: #0f172a; }
+    .zoombox-mode, .zoombox-mode .leaflet-interactive { cursor: crosshair !important; }
+    /* Legend colorbar hasil InSAR (KMZ) */
     .insar-legend {
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.88);
       padding: 4px 6px;
       border-radius: 6px;
       box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
       display: flex;
       gap: 6px;
     }
-    .insar-legend img { display: block; max-height: 35vh; width: auto; }
+    .insar-legend img { display: block; max-height: 40vh; width: auto; }
+    /* Header & footer: navajowhite */
+    .bar-navajo { background: #FFDEAD; color: #1e293b; }
+    header.bar-navajo { border-bottom: 1px solid #d9b382; }
+    footer.bar-navajo { border-top: 1px solid #d9b382; }
+    footer.bar-navajo a { color: #1e293b; text-decoration: underline; }
+    /* Toolbar peta horizontal (kiri atas) */
+    .map-toolbar { display: flex; align-items: flex-start; gap: 6px; }
+    .map-toolbar .map-toolbar-sep { margin-left: 8px; }
+    /* Label ID stasiun GPS */
+    .leaflet-tooltip.gps-label {
+      background: rgba(255, 255, 255, 0.78);
+      border: none;
+      box-shadow: none;
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 10px;
+      padding: 0 3px;
+    }
+    .leaflet-tooltip-top.gps-label::before { display: none; }
+    /* Ikon gunung api */
     .volcano-icon { background: transparent; border: none; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col select-none">
 
-  <!-- Header dengan Warna Navajowhite -->
-  <header class="bg-navajowhite border-b border-amber-300 px-6 py-2.5 flex items-center justify-between shadow-md">
+  <!-- Header -->
+  <header class="bar-navajo h-[65px] px-6 flex items-center justify-between shadow-md">
     <div class="flex items-center gap-3">
-      <div class="p-2 bg-amber-600/20 text-amber-900 rounded-lg border border-amber-700/30">
+      <div class="p-2 bg-emerald-700/15 text-emerald-800 rounded-lg border border-emerald-700/30">
         <i class="fa-solid fa-earth-asia text-xl"></i>
       </div>
       <div>
-        <h1 class="text-lg font-black tracking-tight text-slate-900">ID-Geomap Generator</h1>
-        <p class="text-xs font-semibold text-slate-700">PyGMT-based Cartographic Engine</p>
+        <h1 class="text-lg font-bold tracking-tight text-slate-900">ID-Geomap Generator</h1>
+        <p class="text-xs text-slate-600">PyGMT-based Cartographic Engine</p>
       </div>
     </div>
-    
-    <!-- Login Administrator di Pojok Kanan Atas -->
     <div class="flex items-center gap-3">
-      <div id="adminBadge" class="hidden items-center gap-1.5 px-3 py-1 bg-emerald-700 text-white rounded-full text-xs font-bold shadow">
-        <i class="fa-solid fa-shield-halved"></i> ARIF Admin Active
-      </div>
-      <button id="btnLoginAdmin" class="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-bold rounded-lg shadow border border-slate-700 transition flex items-center gap-1.5">
-        <i class="fa-solid fa-user-lock"></i> <span id="adminBtnLabel">Login Admin</span>
+      <span id="adminBadge" class="hidden px-2.5 py-1 rounded-md bg-emerald-700 text-white text-xs font-semibold items-center gap-1.5 flex">
+        <i class="fa-solid fa-user-shield"></i> Admin: <span id="adminName"></span>
+      </span>
+      <button id="btnAdminLogin" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-2">
+        <i class="fa-solid fa-user-shield"></i> Administrator Login
+      </button>
+      <button id="btnAdminLogout" class="hidden px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-2">
+        <i class="fa-solid fa-right-from-bracket"></i> Logout
       </button>
     </div>
   </header>
@@ -113,14 +112,14 @@
   <!-- Main Workspace -->
   <main class="flex-1 grid grid-cols-12 gap-0 overflow-hidden">
     
-    <!-- Sidebar Konfigurasi (Urutan Menu Baru) -->
+    <!-- Left Configuration Sidebar -->
     <aside class="col-span-12 lg:col-span-4 bg-slate-900/95 border-r border-slate-800 p-4 overflow-y-auto custom-scrollbar flex flex-col gap-4 h-[calc(100vh-65px-32px)]">
       
-      <!-- 1. Region Boundaries -->
+      <!-- Coordinate Region -->
       <section class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60">
         <div class="flex items-center justify-between mb-2">
           <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-            <i class="fa-solid fa-vector-square text-emerald-400"></i> 1. Region Boundaries
+            <i class="fa-solid fa-vector-square text-emerald-400"></i> Region Boundaries
           </label>
           <button id="btnResetHomeRegion" class="text-[11px] text-sky-400 hover:text-sky-300 flex items-center gap-1">
             <i class="fa-solid fa-house text-[10px]"></i> Indonesia
@@ -130,11 +129,11 @@
         <div class="grid grid-cols-2 gap-2 text-xs">
           <div>
             <span class="text-slate-400 block mb-0.5">Min Lon (West)</span>
-            <input id="minLon" type="number" step="0.01" value="105.00" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:border-emerald-500 font-mono">
+            <input id="minLon" type="number" step="0.01" value="105" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:border-emerald-500 font-mono">
           </div>
           <div>
             <span class="text-slate-400 block mb-0.5">Max Lon (East)</span>
-            <input id="maxLon" type="number" step="0.01" value="115.00" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:border-emerald-500 font-mono">
+            <input id="maxLon" type="number" step="0.01" value="115" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:border-emerald-500 font-mono">
           </div>
           <div>
             <span class="text-slate-400 block mb-0.5">Min Lat (South)</span>
@@ -149,38 +148,21 @@
         <div class="mt-2.5 flex flex-wrap gap-1.5">
           <button id="presetSumatra" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Sumatra</button>
           <button id="presetJava" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Java</button>
-          <button id="presetFlores" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Flores</button>
+          <button id="presetFlores" title="Labuan Bajo - Lewoleba" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Flores</button>
           <button id="presetSulawesi" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Sulawesi</button>
           <button id="presetHalmahera" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Halmahera</button>
           <button id="presetPapua" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">Papua</button>
         </div>
       </section>
 
-      <!-- 2. Radar Footprints -->
+      <!-- InSAR Footprint Coverage -->
       <section class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60 space-y-3">
-        <div class="flex items-center justify-between">
-          <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-            <i class="fa-solid fa-draw-polygon text-emerald-400"></i> 2. Radar Footprints
-          </label>
-          <span class="text-[10px] text-slate-400">SAR Geometry</span>
-        </div>
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+          <span class="flex items-center gap-2"><i class="fa-solid fa-draw-polygon text-emerald-400"></i> Radar Footprints</span>
+          <span class="text-[10px] text-slate-400">SAR Track Geometry</span>
+        </label>
 
-        <!-- Admin Only: Nationwide InSAR Footprint & Archive Checking -->
-        <div id="adminFootprintTools" class="hidden p-2.5 bg-amber-950/40 rounded-lg border border-amber-600/40 space-y-2">
-          <div class="flex items-center justify-between text-xs text-amber-300 font-bold">
-            <span><i class="fa-solid fa-satellite"></i> ARIF InSAR Portal Link</span>
-          </div>
-          <div class="grid grid-cols-2 gap-1.5 text-[11px]">
-            <a href="https://search.asf.alaska.edu/" target="_blank" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded text-center border border-slate-700 flex items-center justify-center gap-1">
-              <i class="fa-solid fa-up-right-from-square text-[9px]"></i> ASF Vertex
-            </a>
-            <a href="https://browser.dataspace.copernicus.eu/" target="_blank" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded text-center border border-slate-700 flex items-center justify-center gap-1">
-              <i class="fa-solid fa-up-right-from-square text-[9px]"></i> Copernicus
-            </a>
-          </div>
-        </div>
-
-        <!-- Ascending Track -->
+        <!-- Ascending Track (Default Unchecked) -->
         <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 space-y-2">
           <div class="flex items-center justify-between">
             <label class="flex items-center gap-2 cursor-pointer">
@@ -189,41 +171,42 @@
                 <i class="fa-solid fa-arrow-up-right-dots"></i> Ascending Track
               </span>
             </label>
-            <input id="ascFrameNo" type="text" value="Path XXX" placeholder="Frame No." class="text-[11px] bg-slate-950 border border-cyan-800/50 rounded px-2 py-0.5 text-cyan-200 w-32 text-right font-mono">
+            <input id="ascFrameNo" type="text" value="Path XXX" placeholder="Frame No." class="text-[11px] bg-slate-950 border border-cyan-800/50 rounded px-2 py-0.5 text-cyan-200 w-36 text-right font-mono">
           </div>
+          
           <div id="ascCoordsContainer" class="hidden grid grid-cols-2 gap-1.5 text-[10px] pt-1">
             <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
               <span class="text-slate-400 block font-semibold">Upper Left (UL)</span>
               <div class="flex gap-1 mt-0.5">
-                <input id="asc_ul_lon" type="number" step="0.01" value="118.79" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
-                <input id="asc_ul_lat" type="number" step="0.01" value="-0.77" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
+                <input id="asc_ul_lon" type="number" step="0.01" value="118.79" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="asc_ul_lat" type="number" step="0.01" value="-0.77" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
               </div>
             </div>
             <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
               <span class="text-slate-400 block font-semibold">Upper Right (UR)</span>
               <div class="flex gap-1 mt-0.5">
-                <input id="asc_ur_lon" type="number" step="0.01" value="121.12" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
-                <input id="asc_ur_lat" type="number" step="0.01" value="-0.27" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
+                <input id="asc_ur_lon" type="number" step="0.01" value="121.12" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="asc_ur_lat" type="number" step="0.01" value="-0.27" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
               </div>
             </div>
             <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
               <span class="text-slate-400 block font-semibold">Lower Left (LL)</span>
               <div class="flex gap-1 mt-0.5">
-                <input id="asc_ll_lon" type="number" step="0.01" value="119.20" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
-                <input id="asc_ll_lat" type="number" step="0.01" value="-2.61" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
+                <input id="asc_ll_lon" type="number" step="0.01" value="119.20" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="asc_ll_lat" type="number" step="0.01" value="-2.61" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
               </div>
             </div>
             <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
               <span class="text-slate-400 block font-semibold">Lower Right (LR)</span>
               <div class="flex gap-1 mt-0.5">
-                <input id="asc_lr_lon" type="number" step="0.01" value="121.57" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
-                <input id="asc_lr_lat" type="number" step="0.01" value="-2.09" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
+                <input id="asc_lr_lon" type="number" step="0.01" value="121.57" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="asc_lr_lat" type="number" step="0.01" value="-2.09" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Descending Track -->
+        <!-- Descending Track (Default Unchecked) -->
         <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 space-y-2">
           <div class="flex items-center justify-between">
             <label class="flex items-center gap-2 cursor-pointer">
@@ -232,61 +215,53 @@
                 <i class="fa-solid fa-arrow-down-right-dots"></i> Descending Track
               </span>
             </label>
-            <input id="dscFrameNo" type="text" value="Path XXX" placeholder="Frame No." class="text-[11px] bg-slate-950 border border-pink-800/50 rounded px-2 py-0.5 text-pink-200 w-32 text-right font-mono">
+            <input id="dscFrameNo" type="text" value="Path XXX" placeholder="Frame No." class="text-[11px] bg-slate-950 border border-pink-800/50 rounded px-2 py-0.5 text-pink-200 w-36 text-right font-mono">
           </div>
+          
           <div id="dscCoordsContainer" class="hidden grid grid-cols-2 gap-1.5 text-[10px] pt-1">
             <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
               <span class="text-slate-400 block font-semibold">Upper Left (UL)</span>
               <div class="flex gap-1 mt-0.5">
-                <input id="dsc_ul_lon" type="number" step="0.01" value="118.90" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
-                <input id="dsc_ul_lat" type="number" step="0.01" value="0.02" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
+                <input id="dsc_ul_lon" type="number" step="0.01" value="118.90" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="dsc_ul_lat" type="number" step="0.01" value="0.02" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
               </div>
             </div>
             <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
               <span class="text-slate-400 block font-semibold">Upper Right (UR)</span>
               <div class="flex gap-1 mt-0.5">
-                <input id="dsc_ur_lon" type="number" step="0.01" value="121.15" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
-                <input id="dsc_ur_lat" type="number" step="0.01" value="-0.46" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
+                <input id="dsc_ur_lon" type="number" step="0.01" value="121.15" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="dsc_ur_lat" type="number" step="0.01" value="-0.46" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
               </div>
             </div>
             <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
               <span class="text-slate-400 block font-semibold">Lower Left (LL)</span>
               <div class="flex gap-1 mt-0.5">
-                <input id="dsc_ll_lon" type="number" step="0.01" value="118.56" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
-                <input id="dsc_ll_lat" type="number" step="0.01" value="-1.49" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
+                <input id="dsc_ll_lon" type="number" step="0.01" value="118.56" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="dsc_ll_lat" type="number" step="0.01" value="-1.49" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
               </div>
             </div>
             <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
               <span class="text-slate-400 block font-semibold">Lower Right (LR)</span>
               <div class="flex gap-1 mt-0.5">
-                <input id="dsc_lr_lon" type="number" step="0.01" value="120.80" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
-                <input id="dsc_lr_lat" type="number" step="0.01" value="-1.97" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono">
+                <input id="dsc_lr_lon" type="number" step="0.01" value="120.80" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lon">
+                <input id="dsc_lr_lat" type="number" step="0.01" value="-1.97" class="w-1/2 bg-slate-900 rounded px-1 py-0.5 text-white font-mono" placeholder="Lat">
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- 3. Radar Displacements -->
+      <!-- Visualization InSAR Results (KMZ overlay) -->
       <section class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60 space-y-2.5">
         <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
-          <span class="flex items-center gap-2"><i class="fa-solid fa-satellite-dish text-emerald-400"></i> 3. Radar Displacements</span>
-          <span class="text-[10px] text-slate-400">KMZ / Raster</span>
+          <span class="flex items-center gap-2"><i class="fa-solid fa-satellite-dish text-emerald-400"></i> Radar Displacements</span>
+          <span class="text-[10px] text-slate-400">KMZ</span>
         </label>
 
         <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-slate-800 cursor-pointer text-xs">
           <input id="chkInsarResult" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
           <span class="text-slate-200">Show InSAR results (overlay on map)</span>
         </label>
-
-        <!-- Khusus Administrator: Kirim overlay InSAR ke output PyGMT -->
-        <div id="adminInsarPyGMTBox" class="hidden p-2 bg-slate-950/70 rounded border border-amber-600/40 text-[11px] space-y-1">
-          <label class="flex items-center gap-2 text-amber-300 font-semibold cursor-pointer">
-            <input id="chkPyGMTInsarOverlay" type="checkbox" class="w-3.5 h-3.5 rounded text-amber-500 bg-slate-800 border-slate-700">
-            <span>Burn InSAR to PyGMT Output (Hillshade base)</span>
-          </label>
-          <span class="text-[10px] text-slate-400 block">Menghasilkan peta deformasi standar Q1 paper dengan colorbar deformasi.</span>
-        </div>
 
         <input id="insarFile" type="file" accept=".kmz" class="block w-full text-[11px] text-slate-300 cursor-pointer file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-700 file:text-emerald-300 hover:file:bg-slate-600">
 
@@ -299,20 +274,60 @@
         <button id="btnInsarZoom" type="button" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">
           <i class="fa-solid fa-magnifying-glass-plus mr-1"></i> Zoom to result
         </button>
-        <p id="insarStatus" class="text-[10px] text-slate-400 leading-relaxed">Pilih file .kmz hasil MintPy (misal: velocity.kmz).</p>
+        <button id="btnInsarRegion" type="button" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">
+          <i class="fa-solid fa-vector-square mr-1"></i> Set region to result
+        </button>
+        <p id="insarStatus" class="text-[10px] text-slate-400 leading-relaxed">Pilih file .kmz hasil MintPy (contoh: velocity.kmz).</p>
+
+        <!-- Khusus administrator: overlay InSAR pada hasil Generate Map -->
+        <div id="insarAdminBlock" class="hidden border-t border-slate-700/60 pt-2.5 space-y-2">
+          <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-amber-500/40 cursor-pointer text-xs">
+            <input id="chkInsarOutput" type="checkbox" class="w-3.5 h-3.5 rounded text-amber-500 bg-slate-800 border-slate-700">
+            <span class="text-slate-200"><i class="fa-solid fa-user-shield text-amber-400 mr-1"></i> Overlay pada Generate Map</span>
+          </label>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <span class="text-slate-400 block mb-1">Colormap</span>
+              <select id="insarCmap" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:border-emerald-500">
+                <option value="jet" selected>jet (MintPy default)</option>
+                <option value="viridis">viridis</option>
+                <option value="turbo">turbo</option>
+                <option value="roma">roma</option>
+                <option value="vik">vik</option>
+                <option value="polar">polar</option>
+              </select>
+            </div>
+            <label class="flex items-end gap-1.5 pb-1.5 cursor-pointer text-slate-200">
+              <input id="insarCmapRev" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700"> Reverse
+            </label>
+            <div>
+              <span class="text-slate-400 block mb-1">Colorbar min</span>
+              <input id="insarVmin" type="number" step="any" placeholder="mis. -24" class="select-text w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white font-mono focus:border-emerald-500">
+            </div>
+            <div>
+              <span class="text-slate-400 block mb-1">Colorbar max</span>
+              <input id="insarVmax" type="number" step="any" placeholder="mis. 3" class="select-text w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white font-mono focus:border-emerald-500">
+            </div>
+          </div>
+          <div class="text-xs">
+            <span class="text-slate-400 block mb-1">Colorbar label</span>
+            <input id="insarCbarLabel" type="text" value="Mean LOS velocity (cm/year)" class="select-text w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:border-emerald-500">
+          </div>
+          <p class="text-[10px] text-slate-500 leading-relaxed">Min/Max dan colormap harus sama dengan yang dipakai saat membuat KMZ di MintPy. Disarankan basemap Hillshade (Cartographic Layout) dan region disetel ke area hasil.</p>
+        </div>
       </section>
 
-      <!-- 4. GNSS Stations -->
+      <!-- GPS Stations -->
       <section class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60 space-y-2.5">
         <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
-          <span class="flex items-center gap-2"><i class="fa-solid fa-location-dot text-emerald-400"></i> 4. GNSS Stations</span>
+          <span class="flex items-center gap-2"><i class="fa-solid fa-location-dot text-emerald-400"></i> GNSS Stations</span>
           <span class="text-[10px] text-slate-400">ID Lat Lon</span>
         </label>
 
         <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-slate-800 cursor-pointer text-xs">
           <input id="chkGps" type="checkbox" class="w-3.5 h-3.5 rounded text-blue-500 bg-slate-800 border-slate-700">
           <span class="text-slate-200 flex items-center gap-1.5">
-            <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span> Plot GNSS Stations (circle)
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span> Plot GNSS Stations (blue circle)
           </span>
         </label>
 
@@ -327,16 +342,18 @@
 
         <input id="gpsFile" type="file" class="block w-full text-[11px] text-slate-300 cursor-pointer file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-700 file:text-emerald-300 hover:file:bg-slate-600">
         <p id="gpsStatus" class="text-[10px] text-slate-400 leading-relaxed">
-          Format baris: <span class="font-mono text-slate-300">ID lat lon</span> (contoh: <span class="font-mono text-slate-300">bako -6.309 106.203</span>)
+          Format tiap baris: <span class="font-mono text-slate-300">ID lat lon</span><br>
+          Contoh: <span class="font-mono text-slate-300">bako -6.309 106.203</span>
         </p>
       </section>
 
-      <!-- 5. Cartographic Layout -->
+      <!-- Cartography Layout Settings -->
       <section class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60 space-y-3">
         <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-          <i class="fa-solid fa-palette text-emerald-400"></i> 5. Cartographic Layout
+          <i class="fa-solid fa-palette text-emerald-400"></i> Cartographic Layout
         </label>
 
+        <!-- Colorbar & Orientation -->
         <div class="grid grid-cols-2 gap-2 text-xs">
           <div>
             <span class="text-slate-400 block mb-1">Color Palette (CPT)</span>
@@ -356,6 +373,7 @@
           </div>
         </div>
 
+        <!-- Frame Style -->
         <div class="text-xs">
           <span class="text-slate-400 block mb-1">Frame Style</span>
           <select id="frameStyle" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-white focus:border-emerald-500">
@@ -364,7 +382,7 @@
           </select>
         </div>
 
-        <!-- Scalebar Southwest -->
+        <!-- Scalebar Option (Default Unchecked) -->
         <div class="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 space-y-2">
           <label class="flex items-center gap-2.5 cursor-pointer">
             <input id="chkScalebar" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
@@ -387,10 +405,10 @@
         </div>
       </section>
 
-      <!-- 6. Auxiliary Layout -->
+      <!-- Standard Layers (Default ALL Unchecked) -->
       <section class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60 space-y-2">
         <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-          <i class="fa-solid fa-layer-group text-emerald-400"></i> 6. Auxiliary Layout
+          <i class="fa-solid fa-layer-group text-emerald-400"></i> Auxiliary Layout
         </label>
 
         <div class="space-y-1.5 text-xs">
@@ -406,79 +424,100 @@
             <input id="chkVolcanoes" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
             <span class="text-slate-200">Holocene Volcanoes (Smithsonian GVP)</span>
           </label>
+          <div class="p-1.5 bg-slate-900/60 rounded border border-slate-800 space-y-1.5">
+            <label class="flex items-center gap-2.5 cursor-pointer">
+              <input id="chkEq" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
+              <span class="text-slate-200">Earthquakes (M &ge; 5, USGS)</span>
+            </label>
+            <div class="flex items-center gap-2 pl-6 text-[11px]">
+              <span class="text-slate-400">Period</span>
+              <select id="eqPeriod" class="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-white focus:border-emerald-500">
+                <option value="1">Last 1 year</option>
+                <option value="5">Last 5 years</option>
+                <option value="10" selected>Last 10 years</option>
+                <option value="25">Last 25 years</option>
+                <option value="all">Since 1973</option>
+              </select>
+            </div>
+            <p id="eqStatus" class="hidden text-[10px] pl-6 leading-relaxed"></p>
+          </div>
           <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-slate-800 cursor-pointer">
             <input id="chkContours" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
             <span class="text-slate-200">Contours (Interval 200m - Land Only)</span>
           </label>
-          <!-- Fitur Baru: Gempa > Mw 5 -->
-          <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-slate-800 cursor-pointer">
-            <input id="chkQuakes" type="checkbox" class="w-3.5 h-3.5 rounded text-orange-500 bg-slate-800 border-slate-700">
-            <span class="text-slate-200 flex items-center gap-1.5">
-              <i class="fa-solid fa-circle-dot text-orange-400"></i> Earthquakes (&gt; Mw 5.0)
-            </span>
-          </label>
+          <p id="contourStatus" class="hidden text-[10px] leading-relaxed px-1"></p>
         </div>
+      </section>
+
+      <!-- Administrator Tools (hanya tampil setelah login) -->
+      <section id="adminPanel" class="hidden bg-slate-800/60 p-3.5 rounded-xl border border-amber-500/40 space-y-2">
+        <label class="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-2">
+          <i class="fa-solid fa-user-shield"></i> Administrator Tools
+        </label>
+        <div id="adminFeatureList" class="space-y-1.5"></div>
       </section>
 
     </aside>
 
-    <!-- Workspace Kanan: Map Container -->
-    <section class="col-span-12 lg:col-span-8 relative h-[calc(100vh-65px-32px)] bg-slate-950">
-      
-      <!-- Horizontal Toolbar di Atas Pojok Kiri Peta (Menjajar ke Kanan) -->
-      <div class="map-top-bar">
-        <button id="btnGenerate" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-md shadow flex items-center gap-1.5 text-xs">
+    <!-- Right Workspace Area: Satellite Leaflet Map with Home Control -->
+    <section class="col-span-12 lg:col-span-8 flex flex-col h-[calc(100vh-65px-32px)] bg-slate-950">
+      <!-- Bar di atas pojok kiri peta: tombol Generate Map -->
+      <div class="shrink-0 bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center gap-3">
+        <button id="btnGenerate" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-emerald-900/30 transition flex items-center gap-2">
           <i class="fa-solid fa-play"></i> Generate Map
         </button>
-        <div class="h-4 w-[1px] bg-slate-700 mx-1"></div>
-        <button id="btnHomeMap" class="map-tool-btn" title="Kembali ke Indonesia">
-          <i class="fa-solid fa-house"></i> Home
-        </button>
-        <button id="btnZoomBox" class="map-tool-btn" title="Drag kotak untuk zoom">
-          <i class="fa-solid fa-magnifying-glass-plus"></i> Zoom Area
-        </button>
-        <button id="btnDrawBbox" class="map-tool-btn" title="Gambar Bounding Box Region">
-          <i class="fa-solid fa-vector-square"></i> Draw Region
-        </button>
-        <div class="h-4 w-[1px] bg-slate-700 mx-1"></div>
-        <!-- Pilihan Basemap ESRI & Google Berlabel Kota -->
-        <div class="flex items-center gap-1 bg-slate-950/80 p-0.5 rounded border border-slate-700 text-xs">
-          <button id="btnBasemapEsri" class="px-2 py-0.5 rounded font-semibold text-sky-400 bg-slate-800">ESRI</button>
-          <button id="btnBasemapGoogle" class="px-2 py-0.5 rounded font-semibold text-slate-400 hover:text-white">Google Hybrid</button>
-        </div>
       </div>
 
-      <div id="interactiveMap" class="w-full h-full"></div>
+      <div class="relative flex-1 min-h-0">
+        <div id="interactiveMap" class="w-full h-full"></div>
+
+        <!-- Pemilih basemap -->
+        <div class="absolute top-4 right-4 z-[1000] bg-slate-900/90 backdrop-blur px-2.5 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-300 shadow-lg flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-slate-400">Basemap</span>
+          <div class="flex rounded-md overflow-hidden border border-slate-600">
+            <button id="basemapEsri" type="button" title="ESRI World Imagery" class="px-2.5 py-0.5 text-[11px] font-semibold bg-emerald-600 text-white">ESRI</button>
+            <button id="basemapGoogle" type="button" title="Google Hybrid (satelit + label nama tempat)" class="px-2.5 py-0.5 text-[11px] font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">Google</button>
+          </div>
+        </div>
+      </div>
     </section>
 
   </main>
+<footer class="bar-navajo h-8 shrink-0 flex items-center justify-center text-[11px]">
+  Developed by&nbsp;<a href="mailto:arif@seis.nagoya.ac.jp">arif@seis.nagoya.ac.jp</a>
+</footer>
 
-  <!-- Footer Navajowhite -->
-  <footer class="h-8 shrink-0 bg-navajowhite border-t border-amber-300 flex items-center justify-between px-6 text-xs font-semibold text-slate-800">
-    <span>ID-PyGMTERATOR v2.0 - Cartographic System</span>
-    <span>Developed by arif@seis.nagoya.ac.jp</span>
-  </footer>
-
-  <!-- Modal Login Administrator -->
-  <div id="modalAdminLogin" class="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
-      <div class="flex justify-between items-center">
-        <h3 class="text-sm font-bold text-amber-300 flex items-center gap-2">
-          <i class="fa-solid fa-shield-halved"></i> Administrator Authentication
-        </h3>
-        <button id="btnCloseAdminModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+  <!-- ================= ADMINISTRATOR LOGIN MODAL ================= -->
+  <div id="modalLogin" class="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-user-shield text-emerald-400"></i> Administrator Login</h2>
+        <button id="btnLoginClose" type="button" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <p class="text-xs text-slate-300">Masukkan PIN/Password Administrator untuk mengaktifkan sistem modul ARIF InSAR Deformation Monitoring.</p>
-      <input id="adminPassword" type="password" placeholder="Admin Key" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-white font-mono focus:border-amber-400">
-      <button id="btnSubmitAdminLogin" class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded text-xs shadow">
-        Authenticate & Enable ARIF Features
-      </button>
+      <div class="space-y-3 text-xs">
+        <div>
+          <span class="text-slate-400 block mb-1">Username</span>
+          <input id="adminUser" type="text" autocomplete="username" class="select-text w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-2 text-white focus:border-emerald-500">
+        </div>
+        <div>
+          <span class="text-slate-400 block mb-1">Password</span>
+          <input id="adminPass" type="password" autocomplete="current-password" class="select-text w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-2 text-white focus:border-emerald-500">
+        </div>
+        <p id="loginError" class="hidden text-red-400 text-[11px] leading-relaxed"></p>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button id="btnLoginCancel" type="button" class="px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">Cancel</button>
+        <button id="btnLoginSubmit" type="button" class="px-4 py-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">Login</button>
+      </div>
     </div>
   </div>
 
-  <!-- Pop-Up Preview & Export Modal -->
+  <!-- ================= POP-UP PREVIEW & EXPORT MODAL ================= -->
   <div id="modalPreview" class="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      
+      <!-- Modal Header -->
       <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
         <div class="flex items-center gap-3">
           <div class="p-1.5 bg-emerald-600/20 text-emerald-400 rounded border border-emerald-500/30">
@@ -489,6 +528,8 @@
             <p class="text-[11px] text-slate-400">High-Resolution Earth Relief with Shading & Geophysical Layers</p>
           </div>
         </div>
+        
+        <!-- Modal Tabs & Close Button -->
         <div class="flex items-center gap-4">
           <div class="flex bg-slate-800/80 p-0.5 rounded-lg border border-slate-700">
             <button id="modalTabCanvas" class="px-3 py-1 text-xs font-semibold rounded bg-slate-700 text-emerald-400 shadow">Map Result</button>
@@ -500,12 +541,17 @@
         </div>
       </div>
 
+      <!-- Modal Body -->
       <div class="flex-1 overflow-auto p-5 bg-slate-950 flex flex-col items-center justify-center custom-scrollbar">
+        
+        <!-- Image View (PyGMT Rendered Output) -->
         <div id="modalCanvasWrapper" class="w-full flex items-center justify-center">
           <div class="p-2 bg-slate-900 rounded-lg border border-slate-800 shadow-2xl max-w-full">
             <img id="pygmtResultImg" src="" alt="PyGMT Map Output" class="max-h-[58vh] max-w-full rounded border border-slate-700 shadow object-contain" />
           </div>
         </div>
+
+        <!-- Python Script View -->
         <div id="modalCodeWrapper" class="w-full h-[58vh] hidden flex-col">
           <div class="flex justify-between items-center mb-2 px-1">
             <span class="text-xs text-slate-400">Reproducible script for macOS Terminal / Jupyter Lab:</span>
@@ -515,8 +561,10 @@
           </div>
           <pre class="flex-1 overflow-auto bg-slate-900 p-4 rounded-lg border border-slate-800 text-xs text-emerald-300 custom-scrollbar"><code id="codeBlock"></code></pre>
         </div>
+
       </div>
 
+      <!-- Modal Footer (Download Buttons) -->
       <div class="px-6 py-3.5 border-t border-slate-800 bg-slate-950/70 flex items-center justify-between">
         <span class="text-xs text-slate-400 font-mono">Output standard: 300 DPI</span>
         <div class="flex items-center gap-3">
@@ -528,107 +576,222 @@
           </button>
         </div>
       </div>
+
     </div>
   </div>
 
   <script>
-    // --- 1. SATELLITE MAP LOCKED TO INDONESIA ---
+    // Alamat backend PyGMT (lokal saat dev, Railway saat produksi)
+    const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+      ? 'http://127.0.0.1:5001'
+      : 'https://pygmterator-production.up.railway.app';
+
+    // --- 1. SATELLITE MAP LOCKED TO INDONESIA WITH EXPANDED PAPUA ---
     const indonesiaBounds = L.latLngBounds(
       L.latLng(-13.0, 92.0),
       L.latLng(8.0, 143.5)
     );
 
     const map = L.map('interactiveMap', {
+      zoomControl: false,   // tombol zoom ada di toolbar horizontal
       maxBounds: indonesiaBounds,
       maxBoundsViscosity: 0.9,
       minZoom: 4,
-      maxZoom: 18,
-      zoomControl: false // dinonaktifkan agar toolbar horizontal bersih
+      maxZoom: 18
     }).fitBounds(indonesiaBounds, { padding: [15, 15] });
 
-    // Dual Basemaps (Default: ESRI dengan Label Nama Kota)
-    const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 18, attribution: 'Tiles &copy; Esri'
-    });
-    const esriLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 18
-    });
-    const esriGroup = L.layerGroup([esriSat, esriLabels]).addTo(map);
+    // Basemap: ESRI (default) dan Google Hybrid (satelit + label nama tempat)
+    const basemaps = {
+      esri: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 18,
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, USGS'
+      }),
+      google: L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        subdomains: '0123',
+        maxZoom: 20,
+        attribution: 'Map data &copy; Google'
+      })
+    };
+    let activeBasemap = 'esri';
+    basemaps.esri.addTo(map);
 
-    const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-      maxZoom: 19, attribution: 'Map data &copy; Google'
-    });
-
-    // Switcher Basemap
-    document.getElementById('btnBasemapEsri').addEventListener('click', () => {
-      map.removeLayer(googleHybrid);
-      esriGroup.addTo(map);
-      document.getElementById('btnBasemapEsri').classList.add('bg-slate-800', 'text-sky-400');
-      document.getElementById('btnBasemapGoogle').classList.remove('bg-slate-800', 'text-sky-400');
-    });
-    document.getElementById('btnBasemapGoogle').addEventListener('click', () => {
-      map.removeLayer(esriGroup);
-      googleHybrid.addTo(map);
-      document.getElementById('btnBasemapGoogle').classList.add('bg-slate-800', 'text-sky-400');
-      document.getElementById('btnBasemapEsri').classList.remove('bg-slate-800', 'text-sky-400');
-    });
-
-    setTimeout(() => { map.invalidateSize(); }, 250);
-
-    // --- TOOLBAR HORIZONTAL ACTIONS ---
-    document.getElementById('btnHomeMap').addEventListener('click', resetToHome);
-    
-    // Zoom Box Mode
-    let zoomBoxActive = false;
-    let zoomStart = null, zoomEnd = null, zoomRect = null;
-    const btnZoomBox = document.getElementById('btnZoomBox');
-
-    function setZoomBoxMode(on) {
-      zoomBoxActive = on;
-      btnZoomBox.classList.toggle('active', on);
-      map.getContainer().style.cursor = on ? 'crosshair' : '';
-      if (on) map.dragging.disable(); else { cancelZoomDrag(); map.dragging.enable(); }
+    function setBasemap(name) {
+      if (!basemaps[name] || name === activeBasemap) return;
+      map.removeLayer(basemaps[activeBasemap]);
+      basemaps[name].addTo(map);
+      activeBasemap = name;
+      const base = 'px-2.5 py-0.5 text-[11px] font-semibold ';
+      const on = 'bg-emerald-600 text-white';
+      const off = 'bg-slate-800 text-slate-300 hover:bg-slate-700';
+      document.getElementById('basemapEsri').className = base + (name === 'esri' ? on : off);
+      document.getElementById('basemapGoogle').className = base + (name === 'google' ? on : off);
     }
-    btnZoomBox.addEventListener('click', () => setZoomBoxMode(!zoomBoxActive));
+    document.getElementById('basemapEsri').addEventListener('click', () => setBasemap('esri'));
+    document.getElementById('basemapGoogle').addEventListener('click', () => setBasemap('google'));
+
+    // Pastikan peta me-render ulang ukuran canvas saat halaman dibuka
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 250);
+
+    // Paksa Leaflet menghitung ulang ukuran layar saat DOM siap
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+
+
+    // --- TOOL ZOOM BOX (kaca pembesar): klik tool, lalu drag kotak di peta untuk zoom ke area tersebut ---
+    let zoomBoxActive = false;
+    let zoomBoxButton = null;
+    let zoomStart = null;
+    let zoomEnd = null;
+    let zoomRect = null;
 
     function onZoomMove(e) {
       zoomEnd = map.mouseEventToLatLng(e);
       if (zoomRect) zoomRect.setBounds(L.latLngBounds(zoomStart, zoomEnd));
     }
+
     function onZoomUp(e) {
       zoomEnd = map.mouseEventToLatLng(e);
       const bounds = L.latLngBounds(zoomStart, zoomEnd);
       const sw = map.latLngToContainerPoint(bounds.getSouthWest());
       const ne = map.latLngToContainerPoint(bounds.getNorthEast());
+      const dragged = Math.abs(ne.x - sw.x) > 8 && Math.abs(sw.y - ne.y) > 8;  // abaikan klik biasa
       setZoomBoxMode(false);
-      if (Math.abs(ne.x - sw.x) > 8 && Math.abs(sw.y - ne.y) > 8) map.fitBounds(bounds);
+      if (dragged) map.fitBounds(bounds);
     }
+
     function cancelZoomDrag() {
       document.removeEventListener('pointermove', onZoomMove);
       document.removeEventListener('pointerup', onZoomUp);
       if (zoomRect) { map.removeLayer(zoomRect); zoomRect = null; }
+      zoomStart = null;
+      zoomEnd = null;
     }
+
+    function setZoomBoxMode(on) {
+      zoomBoxActive = on;
+      if (zoomBoxButton) zoomBoxButton.classList.toggle('active', on);
+      const el = map.getContainer();
+      el.classList.toggle('zoombox-mode', on);
+      el.style.touchAction = on ? 'none' : '';
+      if (on) {
+        // Matikan tool gambar/edit Geoman agar tidak bentrok
+        try {
+          map.pm.disableDraw();
+          map.pm.disableGlobalEditMode();
+          map.pm.disableGlobalRemovalMode();
+          map.pm.disableGlobalDragMode();
+        } catch (err) { /* abaikan */ }
+        clearPmToolStates();
+        map.dragging.disable();
+      } else {
+        cancelZoomDrag();
+        map.dragging.enable();
+      }
+    }
+
     map.getContainer().addEventListener('pointerdown', (e) => {
       if (!zoomBoxActive || (e.pointerType === 'mouse' && e.button !== 0)) return;
-      if (e.target.closest('.map-top-bar')) return;
+      if (e.target.closest('.leaflet-control')) return;
       e.preventDefault();
+      e.stopPropagation();
       zoomStart = map.mouseEventToLatLng(e);
       zoomEnd = zoomStart;
-      zoomRect = L.rectangle([zoomStart, zoomStart], { color: '#facc15', weight: 1.5, dashArray: '5 4', fillOpacity: 0.12 }).addTo(map);
+      zoomRect = L.rectangle([zoomStart, zoomStart], {
+        color: '#facc15', weight: 1.5, dashArray: '5 4', fillColor: '#facc15', fillOpacity: 0.12, interactive: false
+      }).addTo(map);
       document.addEventListener('pointermove', onZoomMove);
       document.addEventListener('pointerup', onZoomUp, { once: true });
     }, true);
 
-    // Draw Bounding Box via Geoman
-    document.getElementById('btnDrawBbox').addEventListener('click', () => {
-      setZoomBoxMode(false);
-      map.pm.enableDraw('Rectangle');
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && zoomBoxActive) setZoomBoxMode(false);
     });
+
+    // --- TOOLBAR HORIZONTAL (kiri atas peta): zoom, home, zoom-area, gambar/edit/geser/hapus region ---
+    const toolButtons = {};
+
+    function disableAllPmModes() {
+      try {
+        map.pm.disableDraw();
+        map.pm.disableGlobalEditMode();
+        map.pm.disableGlobalRemovalMode();
+        map.pm.disableGlobalDragMode();
+      } catch (err) { /* abaikan */ }
+    }
+
+    function clearPmToolStates() {
+      ['draw', 'edit', 'drag', 'remove'].forEach(n => {
+        if (toolButtons[n]) toolButtons[n].classList.remove('active');
+      });
+    }
+
+    function activatePmTool(name) {
+      if (zoomBoxActive) setZoomBoxMode(false);
+      const wasActive = toolButtons[name].classList.contains('active');
+      disableAllPmModes();
+      clearPmToolStates();
+      if (wasActive) return;   // klik kedua = matikan tool
+      if (name === 'draw') map.pm.enableDraw('Rectangle');
+      if (name === 'edit') map.pm.enableGlobalEditMode();
+      if (name === 'drag') map.pm.enableGlobalDragMode();
+      if (name === 'remove') map.pm.enableGlobalRemovalMode();
+      toolButtons[name].classList.add('active');
+    }
+
+    const MapToolbarControl = L.Control.extend({
+      options: { position: 'topleft' },
+      onAdd: function() {
+        const toolbar = L.DomUtil.create('div', 'map-toolbar');
+        const addTool = (key, icon, title, handler, separated) => {
+          const bar = L.DomUtil.create('div', 'leaflet-bar' + (separated ? ' map-toolbar-sep' : ''), toolbar);
+          const btn = L.DomUtil.create('a', 'leaflet-control-home', bar);
+          btn.innerHTML = '<i class="fa-solid ' + icon + '"></i>';
+          btn.title = title;
+          btn.href = '#';
+          L.DomEvent.disableClickPropagation(btn);
+          L.DomEvent.on(btn, 'click', function(e) {
+            L.DomEvent.preventDefault(e);
+            handler();
+          });
+          toolButtons[key] = btn;
+        };
+        addTool('zoomin', 'fa-plus', 'Zoom in', () => map.zoomIn());
+        addTool('zoomout', 'fa-minus', 'Zoom out', () => map.zoomOut());
+        addTool('home', 'fa-house', 'Flight back to Indonesia', () => resetToHome());
+        addTool('zoombox', 'fa-magnifying-glass-plus', 'Zoom to area: klik tool ini, lalu drag kotak di peta (Esc untuk batal)', () => setZoomBoxMode(!zoomBoxActive));
+        addTool('draw', 'fa-vector-square', 'Gambar kotak region', () => activatePmTool('draw'), true);
+        addTool('edit', 'fa-pen-to-square', 'Edit layer', () => activatePmTool('edit'));
+        addTool('drag', 'fa-up-down-left-right', 'Geser layer', () => activatePmTool('drag'));
+        addTool('remove', 'fa-eraser', 'Hapus layer', () => activatePmTool('remove'));
+        zoomBoxButton = toolButtons.zoombox;
+        L.DomEvent.disableClickPropagation(toolbar);
+        return toolbar;
+      }
+    });
+    map.addControl(new MapToolbarControl());
+    map.on('pm:drawend', () => { if (toolButtons.draw) toolButtons.draw.classList.remove('active'); });
+    map.on('pm:drawstart', () => { if (zoomBoxActive) setZoomBoxMode(false); });
+
+    // Toolbar bawaan Geoman dinonaktifkan; fungsinya dipanggil dari toolbar horizontal di atas
 
     let currentBboxLayer = null;
     let ascPolygonLayer = null;
     let dscPolygonLayer = null;
     let lastGeneratedBase64 = "";
+
+    // State layer yang dimuat on-demand (dideklarasikan di sini agar aman dipanggil dari updateMapOverlays)
+    let contourLayer = null;
+    let contourKey = '';
+    let contourAbort = null;
+    let contourTimer = null;
+    let eqEvents = [];
+    let eqLayer = null;
+    let eqKey = '';
+    let eqPromise = null;
+    let eqRequestId = 0;
 
     function normalizeLon(lon) {
       while (lon > 180.0) lon -= 360.0;
@@ -657,35 +820,50 @@
         color: '#10b981', weight: 2, fillOpacity: 0.08
       }).addTo(map);
 
-      // InSAR Ascending
+      // InSAR Ascending Polygon
       if (ascPolygonLayer) map.removeLayer(ascPolygonLayer);
       if (document.getElementById('chkAsc').checked) {
         document.getElementById('ascCoordsContainer').classList.remove('hidden');
         const asc = getCoords('asc');
-        ascPolygonLayer = L.polygon([[asc.ul[1], asc.ul[0]], [asc.ur[1], asc.ur[0]], [asc.lr[1], asc.lr[0]], [asc.ll[1], asc.ll[0]]], {
-          color: '#06b6d4', weight: 2.5, fillColor: '#06b6d4', fillOpacity: 0.2
+        const ascPoints = [
+          [asc.ul[1], asc.ul[0]],
+          [asc.ur[1], asc.ur[0]],
+          [asc.lr[1], asc.lr[0]],
+          [asc.ll[1], asc.ll[0]]
+        ];
+        ascPolygonLayer = L.polygon(ascPoints, {
+          color: '#ef4444', weight: 2.5, fillColor: '#ef4444', fillOpacity: 0.2
         }).bindTooltip(`Ascending: ${asc.frame}`, { permanent: false }).addTo(map);
       } else {
         document.getElementById('ascCoordsContainer').classList.add('hidden');
       }
 
-      // InSAR Descending
+      // InSAR Descending Polygon
       if (dscPolygonLayer) map.removeLayer(dscPolygonLayer);
       if (document.getElementById('chkDsc').checked) {
         document.getElementById('dscCoordsContainer').classList.remove('hidden');
         const dsc = getCoords('dsc');
-        dscPolygonLayer = L.polygon([[dsc.ul[1], dsc.ul[0]], [dsc.ur[1], dsc.ur[0]], [dsc.lr[1], dsc.lr[0]], [dsc.ll[1], dsc.ll[0]]], {
-          color: '#ec4899', weight: 2.5, fillColor: '#ec4899', fillOpacity: 0.2, dashArray: '5, 5'
+        const dscPoints = [
+          [dsc.ul[1], dsc.ul[0]],
+          [dsc.ur[1], dsc.ur[0]],
+          [dsc.lr[1], dsc.lr[0]],
+          [dsc.ll[1], dsc.ll[0]]
+        ];
+        dscPolygonLayer = L.polygon(dscPoints, {
+          color: '#3b82f6', weight: 2.5, fillColor: '#3b82f6', fillOpacity: 0.2
         }).bindTooltip(`Descending: ${dsc.frame}`, { permanent: false }).addTo(map);
       } else {
         document.getElementById('dscCoordsContainer').classList.add('hidden');
       }
+
+      scheduleContourReload();   // kontur mengikuti perubahan region
     }
 
     map.on('pm:create', (e) => {
       if (currentBboxLayer) map.removeLayer(currentBboxLayer);
       currentBboxLayer = e.layer;
       const bounds = e.layer.getBounds();
+      // Gunakan normalizeLon untuk mencegah bug penambahan 360 derajat
       document.getElementById('minLon').value = normalizeLon(bounds.getWest());
       document.getElementById('maxLon').value = normalizeLon(bounds.getEast());
       document.getElementById('minLat').value = bounds.getSouth().toFixed(2);
@@ -697,9 +875,10 @@
       map.fitBounds(indonesiaBounds, { padding: [15, 15] });
       setCoords(94.0, 141.5, -11.0, 6.0);
     }
+
     document.getElementById('btnResetHomeRegion').addEventListener('click', resetToHome);
 
-    // Presets
+    // Preset Buttons
     document.getElementById('presetSumatra').addEventListener('click', () => setCoords(95.0, 106.0, -6.0, 6.0));
     document.getElementById('presetJava').addEventListener('click', () => setCoords(105.0, 115.0, -9.0, -5.5));
     document.getElementById('presetFlores').addEventListener('click', () => setCoords(119.6, 123.8, -9.2, -7.6));
@@ -716,269 +895,1008 @@
       map.fitBounds([[minY, minX], [maxY, maxX]], { padding: [20, 20] });
     }
 
+    // Toggle Scalebar Dropdown
     document.getElementById('chkScalebar').addEventListener('change', (e) => {
-      document.getElementById('scalebarDropdownContainer').classList.toggle('hidden', !e.target.checked);
-    });
-
-    // --- 6. LIVE CONTOURS ON LEAFLET ---
-    const contourTileLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-      maxZoom: 17, opacity: 0.65
-    });
-    document.getElementById('chkContours').addEventListener('change', (e) => {
-      if (e.target.checked) contourTileLayer.addTo(map);
-      else map.removeLayer(contourTileLayer);
-    });
-
-    // --- 11. EARTHQUAKES > Mw 5.0 (USGS REALTIME API) ---
-    let quakeLayer = null;
-    async function updateQuakesLayer() {
-      const chk = document.getElementById('chkQuakes');
-      if (!chk.checked) {
-        if (quakeLayer) map.removeLayer(quakeLayer);
-        return;
+      const container = document.getElementById('scalebarDropdownContainer');
+      if (e.target.checked) {
+        container.classList.remove('hidden');
+      } else {
+        container.classList.add('hidden');
       }
-      try {
-        const minLon = document.getElementById('minLon').value;
-        const maxLon = document.getElementById('maxLon').value;
-        const minLat = document.getElementById('minLat').value;
-        const maxLat = document.getElementById('maxLat').value;
+    });
 
-        // Query USGS API gempa > 5.0 dalam bounding box
-        const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=5.0&minlongitude=${minLon}&maxlongitude=${maxLon}&minlatitude=${minLat}&maxlatitude=${maxLat}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        
-        if (quakeLayer) map.removeLayer(quakeLayer);
-        quakeLayer = L.layerGroup(data.features.map(f => {
-          const [lon, lat, depth] = f.geometry.coordinates;
-          const mag = f.properties.mag;
-          return L.circleMarker([lat, lon], {
-            radius: Math.max(4, (mag - 4.5) * 6),
-            fillColor: mag >= 6.5 ? '#dc2626' : '#f97316',
-            color: '#000000',
-            weight: 1,
-            fillOpacity: 0.85
-          }).bindTooltip(`<b>M ${mag.toFixed(1)}</b> - Depth: ${depth} km<br>${f.properties.place}`);
-        })).addTo(map);
+    // --- GPS STATIONS (format per baris: ID lat lon) ---
+    let gpsStations = [];
+    let gpsLayer = null;
 
-      } catch (err) {
-        console.error('Error fetching USGS quakes:', err);
-      }
+    function getGpsSize() {
+      const v = parseFloat(document.getElementById('gpsSize').value);
+      return Math.min(60, Math.max(1, isFinite(v) ? v : 12));
     }
-    document.getElementById('chkQuakes').addEventListener('change', updateQuakesLayer);
 
-    // --- ADMINISTRATOR SYSTEM & ARIF DEFORMATION SYSTEM ---
-    let isAdmin = false;
-    const btnLoginAdmin = document.getElementById('btnLoginAdmin');
-    const modalAdminLogin = document.getElementById('modalAdminLogin');
-    const adminPassword = document.getElementById('adminPassword');
+    function parseGpsText(text) {
+      const stations = [];
+      let skipped = 0;
+      text.split(/\r?\n/).forEach(raw => {
+        const line = raw.replace(/^\uFEFF/, '').trim();
+        if (!line || line.startsWith('#')) return;
+        const parts = line.split(/[\s,;]+/);
+        if (parts.length < 3) { skipped++; return; }
+        const lat = parseFloat(parts[1]);
+        let lon = parseFloat(parts[2]);
+        if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90) { skipped++; return; }
+        while (lon > 180) lon -= 360;
+        while (lon < -180) lon += 360;
+        stations.push({ id: parts[0], lat: lat, lon: lon });
+      });
+      return { stations, skipped };
+    }
 
-    btnLoginAdmin.addEventListener('click', () => {
-      if (isAdmin) {
-        isAdmin = false;
-        document.getElementById('adminBadge').classList.add('hidden');
-        document.getElementById('adminFootprintTools').classList.add('hidden');
-        document.getElementById('adminInsarPyGMTBox').classList.add('hidden');
-        document.getElementById('adminBtnLabel').textContent = 'Login Admin';
-      } else {
-        modalAdminLogin.classList.remove('hidden');
-        modalAdminLogin.classList.add('flex');
-      }
+    function updateGpsOverlay() {
+      if (gpsLayer) { map.removeLayer(gpsLayer); gpsLayer = null; }
+      if (!document.getElementById('chkGps').checked || gpsStations.length === 0) return;
+      const radius = Math.max(2, getGpsSize() / 2);
+      const showLabels = document.getElementById('chkGpsLabel').checked;
+      gpsLayer = L.layerGroup(
+        gpsStations.map(s =>
+          L.circleMarker([s.lat, s.lon], {
+            radius: radius, color: '#ffffff', weight: 1, fillColor: '#2563eb', fillOpacity: 1
+          }).bindTooltip(
+            s.id,
+            showLabels
+              ? { permanent: true, direction: 'top', offset: [0, -radius], className: 'gps-label' }
+              : {}
+          )
+        )
+      ).addTo(map);
+    }
+
+    document.getElementById('gpsFile').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const status = document.getElementById('gpsStatus');
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const { stations, skipped } = parseGpsText(String(reader.result));
+        gpsStations = stations;
+        if (stations.length > 0) {
+          document.getElementById('chkGps').checked = true;
+          status.className = 'text-[10px] text-emerald-400 leading-relaxed';
+          status.textContent = `${file.name}: ${stations.length} stasiun dimuat` + (skipped ? `, ${skipped} baris dilewati.` : '.');
+        } else {
+          status.className = 'text-[10px] text-red-400 leading-relaxed';
+          status.textContent = `${file.name}: tidak ada baris valid. Gunakan format "ID lat lon".`;
+        }
+        updateGpsOverlay();
+      };
+      reader.onerror = () => {
+        status.className = 'text-[10px] text-red-400 leading-relaxed';
+        status.textContent = 'Gagal membaca file.';
+      };
+      reader.readAsText(file);
     });
+    document.getElementById('chkGps').addEventListener('change', updateGpsOverlay);
+    document.getElementById('gpsSize').addEventListener('input', updateGpsOverlay);
+    document.getElementById('chkGpsLabel').addEventListener('change', updateGpsOverlay);
 
-    document.getElementById('btnCloseAdminModal').addEventListener('click', () => {
-      modalAdminLogin.classList.add('hidden');
-      modalAdminLogin.classList.remove('flex');
-    });
+    // --- VISUALIZATION INSAR RESULTS: KMZ (MintPy) SEBAGAI OVERLAY ---
+    // KMZ = zip berisi doc.kml + gambar. GroundOverlay -> imageOverlay di peta, ScreenOverlay -> legend colorbar
+    let insarData = null;      // { overlays, legends, blobUrls } dari KMZ terakhir
+    const insarBlobs = new Map();   // url blob -> Blob (dikirim ke server untuk overlay pada Generate Map)
+    let insarGroup = null;
+    let insarLegend = null;
+    let insarBounds = null;
 
-    document.getElementById('btnSubmitAdminLogin').addEventListener('click', () => {
-      if (adminPassword.value === 'arif' || adminPassword.value === 'admin') {
-        isAdmin = true;
-        modalAdminLogin.classList.add('hidden');
-        modalAdminLogin.classList.remove('flex');
-        document.getElementById('adminBadge').classList.remove('hidden');
-        document.getElementById('adminBadge').classList.add('flex');
-        document.getElementById('adminFootprintTools').classList.remove('hidden');
-        document.getElementById('adminInsarPyGMTBox').classList.remove('hidden');
-        document.getElementById('adminBtnLabel').textContent = 'Logout';
-        adminPassword.value = '';
-        alert('Mode Administrator Aktif: Fitur ARIF InSAR Deformation Monitoring & Burn InSAR telah di-enable.');
-      } else {
-        alert('PIN/Password Administrator salah.');
-      }
-    });
+    function mimeFromName(name) {
+      const ext = name.split('.').pop().toLowerCase();
+      return { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' }[ext] || 'image/png';
+    }
 
-    // InSAR KMZ Overlay Parser
-    let insarData = null, insarGroup = null, insarLegend = null, insarBounds = null;
-    function mimeFromName(n) { return { png: 'image/png', jpg: 'image/jpeg' }[n.split('.').pop().toLowerCase()] || 'image/png'; }
+    function findZipEntry(zip, href) {
+      let clean = href.trim();
+      try { clean = decodeURIComponent(clean); } catch (e) { /* pakai apa adanya */ }
+      clean = clean.replace(/^\.\//, '');
+      if (zip.file(clean)) return zip.file(clean);
+      const base = clean.split('/').pop().toLowerCase();
+      return zip.file(/.*/).find(f => f.name.split('/').pop().toLowerCase() === base) || null;
+    }
+
     async function zipImageUrl(zip, href, blobUrls) {
-      const clean = href.trim().replace(/^\.\//, '');
-      const entry = zip.file(clean) || zip.file(/.*/).find(f => f.name.toLowerCase().endsWith(clean.split('/').pop().toLowerCase()));
+      const entry = findZipEntry(zip, href);
       if (!entry) return null;
       const bytes = await entry.async('uint8array');
-      const url = URL.createObjectURL(new Blob([bytes], { type: mimeFromName(entry.name) }));
+      const blob = new Blob([bytes], { type: mimeFromName(entry.name) });
+      const url = URL.createObjectURL(blob);
+      insarBlobs.set(url, blob);
       blobUrls.push(url);
       return url;
     }
+
+    function kmlText(parent, tag) {
+      const el = parent.getElementsByTagName(tag)[0];
+      return el ? el.textContent.trim() : '';
+    }
+
     async function readKmz(file) {
+      if (typeof JSZip === 'undefined') throw new Error('Library JSZip gagal dimuat (periksa koneksi internet).');
       const blobUrls = [];
-      const zip = await JSZip.loadAsync(file);
-      const kmlEntry = zip.file(/\.kml$/i)[0];
-      const xml = new DOMParser().parseFromString(await kmlEntry.async('string'), 'application/xml');
-      const overlays = [];
-      for (const go of Array.from(xml.getElementsByTagName('GroundOverlay'))) {
-        const href = go.getElementsByTagName('href')[0]?.textContent.trim();
-        const north = parseFloat(go.getElementsByTagName('north')[0]?.textContent);
-        const south = parseFloat(go.getElementsByTagName('south')[0]?.textContent);
-        const east = parseFloat(go.getElementsByTagName('east')[0]?.textContent);
-        const west = parseFloat(go.getElementsByTagName('west')[0]?.textContent);
-        if (!href || ![north, south, east, west].every(isFinite)) continue;
-        const url = await zipImageUrl(zip, href, blobUrls);
-        if (url) overlays.push({ url, bounds: [[south, west], [north, east]] });
-      }
-      const legends = [];
-      for (const so of Array.from(xml.getElementsByTagName('ScreenOverlay'))) {
-        const href = so.getElementsByTagName('href')[0]?.textContent.trim();
-        if (href) {
+      try {
+        const zip = await JSZip.loadAsync(file);
+        const kmlFiles = zip.file(/\.kml$/i);
+        const kmlEntry = kmlFiles.find(f => f.name.toLowerCase().endsWith('doc.kml')) || kmlFiles[0];
+        if (!kmlEntry) throw new Error('File .kml tidak ditemukan di dalam KMZ.');
+        const xml = new DOMParser().parseFromString(await kmlEntry.async('string'), 'application/xml');
+        if (xml.getElementsByTagName('parsererror').length) throw new Error('Isi KML tidak valid.');
+
+        const overlays = [];
+        let rotated = false;
+        for (const go of Array.from(xml.getElementsByTagName('GroundOverlay'))) {
+          const href = kmlText(go, 'href');
+          const north = parseFloat(kmlText(go, 'north')), south = parseFloat(kmlText(go, 'south'));
+          const east = parseFloat(kmlText(go, 'east')), west = parseFloat(kmlText(go, 'west'));
+          if (!href || ![north, south, east, west].every(isFinite)) continue;
           const url = await zipImageUrl(zip, href, blobUrls);
-          if (url) legends.push({ url });
+          if (!url) continue;
+          const rot = parseFloat(kmlText(go, 'rotation'));
+          if (isFinite(rot) && rot !== 0) rotated = true;
+          overlays.push({ url, blob: insarBlobs.get(url), bounds: [[south, west], [north, east]] });
         }
+
+        const legends = [];
+        for (const so of Array.from(xml.getElementsByTagName('ScreenOverlay'))) {
+          const href = kmlText(so, 'href');
+          if (!href) continue;
+          const url = await zipImageUrl(zip, href, blobUrls);
+          if (!url) continue;
+          const sizeEl = so.getElementsByTagName('size')[0];
+          const sx = sizeEl ? parseFloat(sizeEl.getAttribute('x')) : 0;
+          const sy = sizeEl ? parseFloat(sizeEl.getAttribute('y')) : 0;
+          legends.push({ url, w: (sy > 0 ? 0 : (sx > 0 ? sx : 0)), h: (sy > 0 ? sy : (sx > 0 ? 0 : 250)) });
+        }
+        return { overlays, legends, blobUrls, rotated };
+      } catch (err) {
+        blobUrls.forEach(u => URL.revokeObjectURL(u));
+        throw err;
       }
-      return { overlays, legends, blobUrls };
+    }
+
+    function removeInsarFromMap() {
+      if (insarGroup) { map.removeLayer(insarGroup); insarGroup = null; }
+      if (insarLegend) { map.removeControl(insarLegend); insarLegend = null; }
+    }
+
+    function updateInsarLayer() {
+      removeInsarFromMap();
+      insarBounds = null;
+      if (!document.getElementById('chkInsarResult').checked || !insarData) return;
+
+      const opacity = parseInt(document.getElementById('insarOpacity').value, 10) / 100;
+      insarGroup = L.layerGroup(insarData.overlays.map(o => {
+        const b = L.latLngBounds(o.bounds);
+        insarBounds = insarBounds ? insarBounds.extend(b) : b;
+        return L.imageOverlay(o.url, o.bounds, { opacity: opacity, interactive: false });
+      })).addTo(map);
+
+      if (insarData.legends.length > 0) {
+        const LegendControl = L.Control.extend({
+          options: { position: 'bottomleft' },
+          onAdd: function() {
+            const div = L.DomUtil.create('div', 'insar-legend');
+            insarData.legends.forEach(lg => {
+              const img = document.createElement('img');
+              img.src = lg.url;
+              img.alt = 'InSAR colorbar';
+              if (lg.h) img.style.height = lg.h + 'px';
+              if (lg.w) img.style.width = lg.w + 'px';
+              div.appendChild(img);
+            });
+            L.DomEvent.disableClickPropagation(div);
+            return div;
+          }
+        });
+        insarLegend = new LegendControl().addTo(map);
+      }
+    }
+
+    function zoomToInsar() {
+      if (insarBounds) map.fitBounds(insarBounds, { padding: [60, 60] });
     }
 
     document.getElementById('insarFile').addEventListener('change', async (e) => {
       const file = e.target.files[0];
+      const status = document.getElementById('insarStatus');
       if (!file) return;
+      status.className = 'text-[10px] text-slate-400 leading-relaxed';
+      status.textContent = `Membaca ${file.name} ...`;
       try {
         const data = await readKmz(file);
+        if (data.overlays.length === 0) throw new Error('Tidak ada GroundOverlay (gambar) di dalam KMZ.');
+        removeInsarFromMap();
+        if (insarData) insarData.blobUrls.forEach(u => { URL.revokeObjectURL(u); insarBlobs.delete(u); });
         insarData = data;
         document.getElementById('chkInsarResult').checked = true;
         updateInsarLayer();
-      } catch (err) { alert('Gagal membaca KMZ: ' + err.message); }
+        zoomToInsar();
+        status.className = 'text-[10px] text-emerald-400 leading-relaxed';
+        status.textContent = `${file.name}: ${data.overlays.length} overlay` +
+          (data.legends.length ? `, ${data.legends.length} colorbar` : '') + ' dimuat.' +
+          (data.rotated ? ' Catatan: rotasi pada KML diabaikan.' : '');
+      } catch (err) {
+        status.className = 'text-[10px] text-red-400 leading-relaxed';
+        status.textContent = `Gagal memuat ${file.name}: ${err.message}`;
+      }
     });
 
-    function updateInsarLayer() {
-      if (insarGroup) map.removeLayer(insarGroup);
-      if (insarLegend) map.removeControl(insarLegend);
-      if (!document.getElementById('chkInsarResult').checked || !insarData) return;
-      const op = parseInt(document.getElementById('insarOpacity').value, 10) / 100;
-      insarGroup = L.layerGroup(insarData.overlays.map(o => {
-        insarBounds = L.latLngBounds(o.bounds);
-        return L.imageOverlay(o.url, o.bounds, { opacity: op });
-      })).addTo(map);
-
-      if (insarData.legends.length > 0) {
-        const LegendCtrl = L.Control.extend({
-          options: { position: 'bottomleft' },
-          onAdd: function() {
-            const div = L.DomUtil.create('div', 'insar-legend');
-            insarData.legends.forEach(l => {
-              const img = document.createElement('img'); img.src = l.url; div.appendChild(img);
-            });
-            return div;
-          }
-        });
-        insarLegend = new LegendCtrl().addTo(map);
+    document.getElementById('chkInsarResult').addEventListener('change', (e) => {
+      const status = document.getElementById('insarStatus');
+      if (e.target.checked && !insarData) {
+        status.className = 'text-[10px] text-amber-400 leading-relaxed';
+        status.textContent = 'Belum ada file. Pilih file .kmz terlebih dahulu.';
       }
-    }
-    document.getElementById('chkInsarResult').addEventListener('change', updateInsarLayer);
-    document.getElementById('insarOpacity').addEventListener('input', (e) => {
-      document.getElementById('insarOpacityVal').textContent = e.target.value + '%';
       updateInsarLayer();
     });
-    document.getElementById('btnInsarZoom').addEventListener('click', () => {
-      if (insarBounds) map.fitBounds(insarBounds);
+
+    document.getElementById('insarOpacity').addEventListener('input', (e) => {
+      document.getElementById('insarOpacityVal').textContent = e.target.value + '%';
+      if (insarGroup) insarGroup.eachLayer(l => l.setOpacity(parseInt(e.target.value, 10) / 100));
     });
 
-    // External Faults & Volcanoes Layers
-    const BIRD_URLS = ['PB2002_boundaries.json', 'https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json'];
-    let birdLayer = null, pusgenLayer = null, volcanoLayer = null;
+    document.getElementById('btnInsarZoom').addEventListener('click', () => {
+      if (!insarData) return;
+      document.getElementById('chkInsarResult').checked = true;
+      if (!insarGroup) updateInsarLayer();
+      zoomToInsar();
+    });
+
+    // --- FAULT LAYERS DI PETA INTERAKTIF ---
+    // File data harus berada satu folder dengan index.html (root repo)
+    const BIRD_URLS = [
+      'PB2002_boundaries.json',
+      'https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json'
+    ];
+    const PUSGEN_URL = 'pusgen_fault_2024.txt';
+    let birdLayer = null;
+    let pusgenLayer = null;
+
+    async function fetchFirst(urls, parse) {
+      for (const u of urls) {
+        try {
+          const r = await fetch(u);
+          if (r.ok) return await parse(r);
+        } catch (e) { /* coba sumber berikutnya */ }
+      }
+      throw new Error('Data tidak dapat dimuat');
+    }
+
+    function escapeHtml(t) {
+      return String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
 
     async function updateBirdLayer() {
       const chk = document.getElementById('chkFaults');
-      if (!chk.checked) { if (birdLayer) map.removeLayer(birdLayer); return; }
+      if (!chk.checked) {
+        if (birdLayer) map.removeLayer(birdLayer);
+        return;
+      }
       if (!birdLayer) {
-        for (const u of BIRD_URLS) {
-          try {
-            const r = await fetch(u);
-            if (r.ok) { birdLayer = L.geoJSON(await r.json(), { style: { color: '#ef4444', weight: 2 } }); break; }
-          } catch (e) {}
+        try {
+          const geojson = await fetchFirst(BIRD_URLS, r => r.json());
+          birdLayer = L.geoJSON(geojson, { style: { color: '#ef4444', weight: 2, opacity: 0.9 }, interactive: false });
+        } catch (e) {
+          chk.checked = false;
+          alert('Gagal memuat data Active Faults (Bird, 2003).');
+          return;
         }
       }
-      if (birdLayer && chk.checked) birdLayer.addTo(map);
+      if (chk.checked) birdLayer.addTo(map);
     }
-    document.getElementById('chkFaults').addEventListener('change', updateBirdLayer);
 
-    // Volcanoes (TSV Smithsonian GVP)
+    // Format PusGeN: blok header KEY=VALUE, lalu baris "lon,lat,nilai"; antar blok dipisah baris kosong
+    function parsePusgen(text) {
+      const segments = [];
+      let meta = {};
+      let pts = [];
+      const flush = () => {
+        if (pts.length > 1) segments.push({ meta, pts });
+        if (pts.length) { meta = {}; pts = []; }
+      };
+      text.split(/\r?\n/).forEach(raw => {
+        const line = raw.trim();
+        if (!line) { flush(); return; }
+        if (line.includes('=')) {
+          flush();
+          const i = line.indexOf('=');
+          meta[line.slice(0, i)] = line.slice(i + 1);
+          return;
+        }
+        const parts = line.split(',');
+        const lon = parseFloat(parts[0]);
+        const lat = parseFloat(parts[1]);
+        if (isFinite(lon) && isFinite(lat)) pts.push([lat, lon]);
+      });
+      flush();
+      return segments;
+    }
+
+    async function updatePusgenLayer() {
+      const chk = document.getElementById('chkPusgen');
+      if (!chk.checked) {
+        if (pusgenLayer) map.removeLayer(pusgenLayer);
+        return;
+      }
+      if (!pusgenLayer) {
+        try {
+          const segments = await fetchFirst([PUSGEN_URL], r => r.text().then(parsePusgen));
+          if (segments.length === 0) throw new Error('kosong');
+          pusgenLayer = L.layerGroup(segments.map(sg => {
+            const m = sg.meta;
+            return L.polyline(sg.pts, { color: '#d946ef', weight: 1.8, opacity: 0.95 })
+              .bindTooltip(
+                `<b>${escapeHtml(m.Name || m.NAME)}</b>` +
+                (m.Segment ? `<br>Segment: ${escapeHtml(m.Segment)}` : '') +
+                (m.Type ? `<br>Type: ${escapeHtml(m.Type)}` : '') +
+                (m.Mmax ? `<br>Mmax: ${parseFloat(m.Mmax).toFixed(1)}` : '') +
+                (m.Sliprate_m ? `<br>Sliprate: ${parseFloat(m.Sliprate_m).toFixed(2)}` : ''),
+                { sticky: true }
+              );
+          }));
+        } catch (e) {
+          chk.checked = false;
+          alert('Gagal memuat data Faults PusGeN 2024.\nPastikan file pusgen_fault_2024.txt berada satu folder dengan index.html di repo.');
+          return;
+        }
+      }
+      if (chk.checked) pusgenLayer.addTo(map);
+    }
+
+    // --- GUNUNG API HOLOSEN (GVP) DI PETA INTERAKTIF ---
+    const VOLCANO_URLS = [
+      'volcanoes-2026-11-06_20-20-10_%2B0700.tsv',
+      'volcanoes-2026-11-06_20-20-10_+0700.tsv',
+      'https://raw.githubusercontent.com/ditafaith/pygmterator/main/volcanoes-2026-11-06_20-20-10_%2B0700.tsv'
+    ];
+    let volcanoLayer = null;
+
+    // Kolom dibaca berdasarkan nama header: Volcano Name, Country, Latitude, Longitude, Elevation (m), Type, Status, Last Known Eruption
+    function parseVolcanoTsv(text) {
+      const rows = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim() !== '');
+      if (rows.length < 2) return [];
+      const clean = v => (v ?? '').trim().replace(/^"|"$/g, '');
+      const header = rows[0].split('\t').map(clean);
+      const col = name => header.findIndex(h => h.toLowerCase() === name.toLowerCase());
+      const iLat = col('Latitude'), iLon = col('Longitude');
+      if (iLat < 0 || iLon < 0) return [];
+      const iName = col('Volcano Name'), iCountry = col('Country'), iElev = col('Elevation (m)');
+      const iType = col('Type'), iStatus = col('Status'), iLast = col('Last Known Eruption');
+      const pick = (c, i) => (i >= 0 ? clean(c[i]) : '');
+      const out = [];
+      rows.slice(1).forEach(line => {
+        const c = line.split('\t');
+        const lat = parseFloat(clean(c[iLat]));
+        const lon = parseFloat(clean(c[iLon]));
+        if (!isFinite(lat) || !isFinite(lon)) return;
+        out.push({
+          lat, lon,
+          name: pick(c, iName), country: pick(c, iCountry), elev: pick(c, iElev),
+          type: pick(c, iType), status: pick(c, iStatus), last: pick(c, iLast)
+        });
+      });
+      return out;
+    }
+
     async function updateVolcanoLayer() {
       const chk = document.getElementById('chkVolcanoes');
-      if (!chk.checked) { if (volcanoLayer) map.removeLayer(volcanoLayer); return; }
+      if (!chk.checked) {
+        if (volcanoLayer) map.removeLayer(volcanoLayer);
+        return;
+      }
       if (!volcanoLayer) {
         try {
-          const r = await fetch('volcanoes-2026-11-06_20-20-10_%2B0700.tsv');
-          const txt = await r.text();
-          const lines = txt.split('\n');
-          const pts = [];
-          lines.slice(1).forEach(l => {
-            const c = l.split('\t');
-            const lat = parseFloat(c[5]), lon = parseFloat(c[6]);
-            if (isFinite(lat) && isFinite(lon)) pts.push({ lat, lon, name: c[2] });
-          });
+          const volcanoes = await fetchFirst(VOLCANO_URLS, r => r.text().then(parseVolcanoTsv));
+          if (volcanoes.length === 0) throw new Error('kosong');
           const icon = L.divIcon({
             className: 'volcano-icon',
-            html: '<svg width="12" height="12"><polygon points="6,1 11,11 1,11" fill="#cd0000" stroke="#000" stroke-width="0.8"/></svg>'
+            html: '<svg width="14" height="14" viewBox="0 0 14 14"><polygon points="7,1 13,13 1,13" fill="#cd0000" stroke="#000" stroke-width="1"/></svg>',
+            iconSize: [14, 14],
+            iconAnchor: [7, 8]
           });
-          volcanoLayer = L.layerGroup(pts.map(p => L.marker([p.lat, p.lon], { icon }).bindTooltip(p.name)));
-        } catch (e) {}
-      }
-      if (volcanoLayer && chk.checked) volcanoLayer.addTo(map);
-    }
-    document.getElementById('chkVolcanoes').addEventListener('change', updateVolcanoLayer);
-
-    // GNSS Stations Parser
-    let gpsStations = [], gpsLayer = null;
-    document.getElementById('gpsFile').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        gpsStations = [];
-        String(reader.result).split('\n').forEach(l => {
-          const p = l.trim().split(/[\s,]+/);
-          if (p.length >= 3) {
-            const lat = parseFloat(p[1]), lon = parseFloat(p[2]);
-            if (isFinite(lat) && isFinite(lon)) gpsStations.push({ id: p[0], lat, lon });
-          }
-        });
-        if (gpsStations.length > 0) {
-          document.getElementById('chkGps').checked = true;
-          updateGpsOverlay();
+          volcanoLayer = L.layerGroup(volcanoes.map(v =>
+            L.marker([v.lat, v.lon], { icon }).bindTooltip(
+              `<b>${escapeHtml(v.name)}</b>` +
+              (v.country ? `<br>${escapeHtml(v.country)}` : '') +
+              (v.type ? `<br>Type: ${escapeHtml(v.type)}` : '') +
+              (v.elev ? `<br>Elevation: ${escapeHtml(v.elev)} m` : '') +
+              (v.status ? `<br>Status: ${escapeHtml(v.status)}` : '') +
+              (v.last ? `<br>Last eruption: ${escapeHtml(v.last)}` : ''),
+              { direction: 'top', offset: [0, -6] }
+            )
+          ));
+        } catch (e) {
+          chk.checked = false;
+          alert('Gagal memuat data Holocene Volcanoes.\nPastikan file .tsv gunung api berada satu folder dengan index.html di repo.');
+          return;
         }
-      };
-      reader.readAsText(file);
-    });
-    function updateGpsOverlay() {
-      if (gpsLayer) map.removeLayer(gpsLayer);
-      if (!document.getElementById('chkGps').checked || !gpsStations.length) return;
-      const r = Math.max(2, parseFloat(document.getElementById('gpsSize').value) / 2);
-      const lbl = document.getElementById('chkGpsLabel').checked;
-      gpsLayer = L.layerGroup(gpsStations.map(s => 
-        L.circleMarker([s.lat, s.lon], { radius: r, fillColor: '#2563eb', color: '#fff', weight: 1, fillOpacity: 1 })
-          .bindTooltip(s.id, lbl ? { permanent: true, direction: 'top' } : {})
-      )).addTo(map);
+      }
+      if (chk.checked) volcanoLayer.addTo(map);
     }
-    document.getElementById('chkGps').addEventListener('change', updateGpsOverlay);
-    document.getElementById('chkGpsLabel').addEventListener('change', updateGpsOverlay);
-    document.getElementById('gpsSize').addEventListener('input', updateGpsOverlay);
 
-    // --- EXECUTE GENERATE MAP (CALL RAILWAY BACKEND) ---
-    const btnGenerate = document.getElementById('btnGenerate');
+    document.getElementById('chkVolcanoes').addEventListener('change', updateVolcanoLayer);
+    document.getElementById('chkFaults').addEventListener('change', updateBirdLayer);
+    document.getElementById('chkPusgen').addEventListener('change', updatePusgenLayer);
+    // Sinkronkan jika browser memulihkan status centang saat halaman dimuat ulang
+    window.addEventListener('load', () => { updateBirdLayer(); updatePusgenLayer(); updateVolcanoLayer(); loadContours(); loadEarthquakes(); });
+
+    // --- KONTUR ELEVASI 200 m (daratan) DI PETA INTERAKTIF ---
+    // Garis kontur dihitung server dari data relief (maks 5° x 5° agar tetap ringan); hasil Generate Map tidak dibatasi.
+    const CONTOUR_MAX_SPAN = 5;
+
+    function setContourStatus(text, kind) {
+      const el = document.getElementById('contourStatus');
+      if (!text) { el.classList.add('hidden'); el.textContent = ''; return; }
+      el.className = 'text-[10px] leading-relaxed px-1 ' +
+        (kind === 'error' ? 'text-red-400' : kind === 'ok' ? 'text-emerald-400' : kind === 'warn' ? 'text-amber-400' : 'text-slate-400');
+      el.textContent = text;
+    }
+
+    function removeContourLayer() {
+      if (contourLayer) { map.removeLayer(contourLayer); contourLayer = null; }
+    }
+
+    async function loadContours() {
+      const chk = document.getElementById('chkContours');
+      if (!chk.checked) { removeContourLayer(); contourKey = ''; setContourStatus(''); return; }
+
+      const minLon = normalizeLon(parseFloat(document.getElementById('minLon').value));
+      const maxLon = normalizeLon(parseFloat(document.getElementById('maxLon').value));
+      const minLat = parseFloat(document.getElementById('minLat').value);
+      const maxLat = parseFloat(document.getElementById('maxLat').value);
+      if (![minLon, maxLon, minLat, maxLat].every(isFinite) || maxLon <= minLon || maxLat <= minLat) return;
+
+      if ((maxLon - minLon) > CONTOUR_MAX_SPAN || (maxLat - minLat) > CONTOUR_MAX_SPAN) {
+        removeContourLayer();
+        contourKey = '';
+        setContourStatus(`Region terlalu luas untuk kontur di peta (maks ${CONTOUR_MAX_SPAN}° x ${CONTOUR_MAX_SPAN}°). Pilih region lebih kecil. Kontur tetap digambar pada hasil Generate Map.`, 'warn');
+        return;
+      }
+
+      const key = [minLon, maxLon, minLat, maxLat].join(',');
+      if (key === contourKey && contourLayer) {
+        if (!map.hasLayer(contourLayer)) contourLayer.addTo(map);
+        return;
+      }
+
+      if (contourAbort) contourAbort.abort();
+      contourAbort = new AbortController();
+      const thisAbort = contourAbort;
+      setContourStatus('Memuat kontur 200 m ...', 'info');
+      try {
+        const res = await fetch(`${API_BASE}/api/contours`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ minLon, maxLon, minLat, maxLat }),
+          signal: thisAbort.signal
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.status !== 'success') throw new Error(data.message || `Server error ${res.status}`);
+        if (!chk.checked) return;
+        removeContourLayer();
+        contourLayer = L.geoJSON(data.geojson, {
+          renderer: L.canvas({ padding: 0.5 }),
+          interactive: false,
+          style: f => ({ color: '#374151', weight: (f.properties.level % 1000 === 0) ? 1.6 : 0.8, opacity: 0.85 })
+        }).addTo(map);
+        contourKey = key;
+        setContourStatus(data.levels > 0
+          ? `Kontur 200 m dimuat (${data.levels} level).`
+          : 'Tidak ada daratan di atas 200 m pada region ini.', 'ok');
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        removeContourLayer();
+        contourKey = '';
+        setContourStatus(`Gagal memuat kontur: ${err.message}`, 'error');
+      }
+    }
+
+    function scheduleContourReload() {
+      if (!document.getElementById('chkContours').checked) return;
+      clearTimeout(contourTimer);
+      contourTimer = setTimeout(loadContours, 700);
+    }
+    document.getElementById('chkContours').addEventListener('change', loadContours);
+
+    // --- GEMPA M >= 5 (USGS FDSN) ---
+    function eqStartDate() {
+      const v = document.getElementById('eqPeriod').value;
+      if (v === 'all') return '1973-01-01';
+      const years = parseInt(v, 10);
+      const d = new Date();
+      d.setFullYear(d.getFullYear() - (isFinite(years) ? years : 10));   // cadangan: 10 tahun
+      return d.toISOString().slice(0, 10);
+    }
+
+    function setEqStatus(text, kind) {
+      const el = document.getElementById('eqStatus');
+      if (!text) { el.classList.add('hidden'); el.textContent = ''; return; }
+      el.className = 'text-[10px] pl-6 leading-relaxed ' +
+        (kind === 'error' ? 'text-red-400' : kind === 'ok' ? 'text-emerald-400' : 'text-slate-400');
+      el.textContent = text;
+    }
+
+    async function fetchEarthquakes() {
+      const b = indonesiaBounds;
+      const url = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=5' +
+        `&starttime=${eqStartDate()}&minlatitude=${b.getSouth()}&maxlatitude=${b.getNorth()}` +
+        `&minlongitude=${b.getWest()}&maxlongitude=${b.getEast()}&orderby=time&limit=20000`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`USGS merespons status ${res.status}`);
+      const data = await res.json();
+      return (data.features || []).map(f => ({
+        lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], depth: f.geometry.coordinates[2],
+        mag: f.properties.mag, magType: f.properties.magType, time: f.properties.time, place: f.properties.place
+      })).filter(ev => isFinite(ev.lon) && isFinite(ev.lat) && isFinite(ev.mag));
+    }
+
+    function buildEqLayer(events) {
+      const renderer = L.canvas({ padding: 0.5 });
+      return L.layerGroup(events.map(ev =>
+        L.circleMarker([ev.lat, ev.lon], {
+          renderer: renderer, radius: Math.max(3, (ev.mag - 3) * 3),
+          color: '#1f2937', weight: 0.6, fillColor: '#f59e0b', fillOpacity: 0.5
+        }).bindTooltip(
+          `<b>M ${ev.mag.toFixed(1)}</b> ${escapeHtml(ev.magType || '')}` +
+          `<br>${escapeHtml(ev.place || '')}` +
+          `<br>${new Date(ev.time).toISOString().slice(0, 16).replace('T', ' ')} UTC` +
+          `<br>Depth: ${isFinite(ev.depth) ? ev.depth.toFixed(0) : '-'} km`,
+          { direction: 'top' }
+        )
+      ));
+    }
+
+    async function loadEarthquakes() {
+      const chk = document.getElementById('chkEq');
+      if (!chk.checked) {
+        if (eqLayer) map.removeLayer(eqLayer);
+        setEqStatus('');
+        return;
+      }
+      const period = document.getElementById('eqPeriod').value;
+      if (eqKey === period && eqLayer) {
+        if (!map.hasLayer(eqLayer)) eqLayer.addTo(map);
+        return;
+      }
+      const reqId = ++eqRequestId;
+      setEqStatus('Memuat data USGS ...', 'info');
+      eqPromise = fetchEarthquakes();
+      try {
+        const events = await eqPromise;
+        if (reqId !== eqRequestId) return;   // sudah digantikan permintaan yang lebih baru
+        if (eqLayer) map.removeLayer(eqLayer);
+        eqEvents = events;
+        eqLayer = buildEqLayer(events);
+        eqKey = period;
+        if (chk.checked) eqLayer.addTo(map);
+        setEqStatus(`${events.length} gempa M\u22655 (USGS)` + (events.length >= 20000 ? ', dibatasi 20.000 kejadian' : '') + '.', 'ok');
+      } catch (err) {
+        if (reqId !== eqRequestId) return;
+        eqEvents = [];
+        eqKey = '';
+        setEqStatus(`Gagal memuat data USGS: ${err.message}`, 'error');
+      }
+    }
+    document.getElementById('chkEq').addEventListener('change', loadEarthquakes);
+    document.getElementById('eqPeriod').addEventListener('change', () => { eqKey = ''; loadEarthquakes(); });
+
+    // --- RADAR DISPLACEMENTS: atur region ke area hasil ---
+    document.getElementById('btnInsarRegion').addEventListener('click', () => {
+      if (!insarData) return;
+      let b = null;
+      insarData.overlays.forEach(o => { const ob = L.latLngBounds(o.bounds); b = b ? b.extend(ob) : ob; });
+      const mx = Math.max((b.getEast() - b.getWest()) * 0.3, 0.01);
+      const my = Math.max((b.getNorth() - b.getSouth()) * 0.3, 0.01);
+      setCoords(b.getWest() - mx, b.getEast() + mx, b.getSouth() - my, b.getNorth() + my);
+    });
+
+    // --- ADMINISTRATOR LOGIN ---
+    // Verifikasi dilakukan di SERVER (token bertanda tangan). Menyembunyikan tombol di browser saja bukan keamanan;
+    // fitur yang benar-benar terlindungi hanya yang dilayani endpoint /api/admin/* atau diperiksa token di server.
+    const ADMIN_TOKEN_KEY = 'idgeomapAdminToken';
+    const ADMIN_NAME_KEY = 'idgeomapAdminName';
+    let adminToken = null;
+    let adminName = '';
+
+    function isAdmin() { return !!adminToken; }
+    function authHeaders() { return adminToken ? { 'Authorization': 'Bearer ' + adminToken } : {}; }
+
+    function applyAdminUi() {
+      const on = isAdmin();
+      document.getElementById('adminBadge').classList.toggle('hidden', !on);
+      document.getElementById('btnAdminLogout').classList.toggle('hidden', !on);
+      document.getElementById('btnAdminLogin').classList.toggle('hidden', on);
+      document.getElementById('adminName').textContent = adminName;
+      document.getElementById('adminPanel').classList.toggle('hidden', !on);
+      document.getElementById('insarAdminBlock').classList.toggle('hidden', !on);
+      if (!on) document.getElementById('chkInsarOutput').checked = false;
+    }
+
+    function clearAdminSession() {
+      adminToken = null;
+      adminName = '';
+      sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+      sessionStorage.removeItem(ADMIN_NAME_KEY);
+      applyAdminUi();
+    }
+
+    function renderAdminFeatures(features) {
+      const box = document.getElementById('adminFeatureList');
+      box.textContent = '';
+      features.forEach(f => {
+        const card = document.createElement('div');
+        card.className = 'p-2 bg-slate-900/60 rounded border border-slate-800';
+        const top = document.createElement('div');
+        top.className = 'flex items-center justify-between gap-2';
+        const title = document.createElement('span');
+        title.className = 'text-slate-200 font-semibold text-[11px]';
+        title.textContent = f.title;
+        const badge = document.createElement('span');
+        const active = f.status === 'active';
+        badge.className = 'shrink-0 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ' +
+          (active ? 'bg-emerald-600/30 text-emerald-300' : 'bg-slate-700 text-slate-400');
+        badge.textContent = active ? 'Active' : 'Planned';
+        top.append(title, badge);
+        const desc = document.createElement('p');
+        desc.className = 'text-[10px] text-slate-400 mt-1 leading-relaxed';
+        desc.textContent = f.description;
+        card.append(top, desc);
+        box.appendChild(card);
+      });
+    }
+
+    async function loadAdminFeatures() {
+      const res = await fetch(`${API_BASE}/api/admin/features`, { headers: authHeaders() });
+      if (res.status === 401) throw new Error('unauthorized');
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = await res.json();
+      renderAdminFeatures(data.features || []);
+    }
+
+    function openLoginModal() {
+      const m = document.getElementById('modalLogin');
+      document.getElementById('loginError').classList.add('hidden');
+      m.classList.remove('hidden');
+      m.classList.add('flex');
+      document.getElementById('adminUser').focus();
+    }
+
+    function closeLoginModal() {
+      const m = document.getElementById('modalLogin');
+      m.classList.add('hidden');
+      m.classList.remove('flex');
+      document.getElementById('adminPass').value = '';
+    }
+
+    async function submitLogin() {
+      const btn = document.getElementById('btnLoginSubmit');
+      const errEl = document.getElementById('loginError');
+      const username = document.getElementById('adminUser').value.trim();
+      const password = document.getElementById('adminPass').value;
+      errEl.classList.add('hidden');
+      if (!username || !password) {
+        errEl.textContent = 'Isi username dan password.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Logging in...';
+      try {
+        const res = await fetch(`${API_BASE}/api/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.status !== 'success') throw new Error(data.message || `Login gagal (status ${res.status})`);
+        adminToken = data.token;
+        adminName = data.username || username;
+        sessionStorage.setItem(ADMIN_TOKEN_KEY, adminToken);
+        sessionStorage.setItem(ADMIN_NAME_KEY, adminName);
+        applyAdminUi();
+        closeLoginModal();
+        loadAdminFeatures().catch(() => {});
+      } catch (err) {
+        errEl.textContent = (err instanceof TypeError) ? 'Tidak dapat menghubungi server.' : err.message;
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Login';
+      }
+    }
+
+    document.getElementById('btnAdminLogin').addEventListener('click', openLoginModal);
+    document.getElementById('btnAdminLogout').addEventListener('click', clearAdminSession);
+    document.getElementById('btnLoginClose').addEventListener('click', closeLoginModal);
+    document.getElementById('btnLoginCancel').addEventListener('click', closeLoginModal);
+    document.getElementById('btnLoginSubmit').addEventListener('click', submitLogin);
+    ['adminUser', 'adminPass'].forEach(id => {
+      document.getElementById(id).addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitLogin();
+        if (e.key === 'Escape') closeLoginModal();
+      });
+    });
+
+    (async function restoreAdminSession() {
+      const saved = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+      if (!saved) { applyAdminUi(); return; }
+      adminToken = saved;
+      adminName = sessionStorage.getItem(ADMIN_NAME_KEY) || '';
+      try {
+        await loadAdminFeatures();   // memastikan token masih berlaku di server
+        applyAdminUi();
+      } catch (err) {
+        clearAdminSession();
+      }
+    })();
+
+    // --- Overlay InSAR untuk Generate Map (khusus administrator) ---
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function buildInsarOverlayPayload() {
+      if (!isAdmin() || !document.getElementById('chkInsarOutput').checked || !insarData) return null;
+      const images = [];
+      for (const o of insarData.overlays) {
+        images.push({
+          image_base64: await blobToBase64(o.blob),
+          west: o.bounds[0][1], south: o.bounds[0][0], east: o.bounds[1][1], north: o.bounds[1][0]
+        });
+      }
+      return {
+        images,
+        vmin: parseFloat(document.getElementById('insarVmin').value),
+        vmax: parseFloat(document.getElementById('insarVmax').value),
+        cmap: document.getElementById('insarCmap').value,
+        reverse: document.getElementById('insarCmapRev').checked,
+        label: document.getElementById('insarCbarLabel').value
+      };
+    }
+
+    // --- 2. GENERATE REPRODUCIBLE PYGMT SCRIPT ---
+    function updatePyGMTCode() {
+      const minLon = normalizeLon(parseFloat(document.getElementById('minLon').value));
+      const maxLon = normalizeLon(parseFloat(document.getElementById('maxLon').value));
+      const minLat = parseFloat(document.getElementById('minLat').value);
+      const maxLat = parseFloat(document.getElementById('maxLat').value);
+      const cpt = document.getElementById('cptType').value;
+      const cbarPos = document.getElementById('cbarPos').value;
+      const frame = document.getElementById('frameStyle').value;
+      
+      const showScalebar = document.getElementById('chkScalebar').checked;
+      const scaleKm = document.getElementById('scalebarKm').value;
+
+      const showFaults = document.getElementById('chkFaults').checked;
+      const showPusgen = document.getElementById('chkPusgen').checked;
+      const showVolcanoes = document.getElementById('chkVolcanoes').checked;
+      const showEq = document.getElementById('chkEq').checked;
+      const eqStart = eqStartDate();
+      const showGps = document.getElementById('chkGps').checked && gpsStations.length > 0;
+      const gpsSize = getGpsSize();
+      const showGpsLabels = document.getElementById('chkGpsLabel').checked;
+      const showContours = document.getElementById('chkContours').checked;
+      const showAsc = document.getElementById('chkAsc').checked;
+      const showDsc = document.getElementById('chkDsc').checked;
+
+      const asc = getCoords('asc');
+      const dsc = getCoords('dsc');
+
+      const frameCode = frame === 'zebra' ? 'f' : 'p';
+      const cbarOrientation = cbarPos === 'right' ? 'JMR+w8c/0.5c+o1.0c/0c' : 'JBC+w10c/0.5c+o0c/1.4c+h';
+
+      const script = `# ==============================================================================
+# ID-GEOMAP GENERATOR: HIGH-RESOLUTION PYGMT PYTHON SCRIPT
+# Standard: 300 DPI Cartographic Publication
+# Region: [${minLon}, ${maxLon}, ${minLat}, ${maxLat}]
+# ==============================================================================
+
+import pygmt
+import pandas as pd
+import numpy as np
+
+# 1. Spatial Region & Projection
+region = [${minLon}, ${maxLon}, ${minLat}, ${maxLat}]
+projection = "M18c"
+
+fig = pygmt.Figure()
+
+# Konfigurasi: 2 desimal koordinat & angka colorbar bulat utuh tanpa koma
+pygmt.config(
+    FORMAT_GEO_MAP="ddd.xx",
+    FORMAT_FLOAT_MAP="%.0f"
+)
+
+# 2. Earth Relief (Grid line dihilangkan, hanya anotasi & border frame)
+grid = pygmt.datasets.load_earth_relief(resolution="01s", region=region)
+fig.grdimage(
+    grid=grid,
+    region=region,
+    projection=projection,
+    cmap="${cpt === 'terrain' ? 'geo' : (cpt === 'bathymetry' ? 'bathy' : 'relief')}",
+    shading=True,
+    frame=["a", "${frameCode}"]
+)
+${showContours ? `
+# 3. Kontur Elevasi: Interval 200m, Anotasi Label Bulat, Khusus Darat
+fig.grdcontour(
+    grid=grid,
+    interval=200,
+    annotation="200+f7p,Helvetica-Bold,gray20",
+    limit=[200, 9000],
+    pen="0.35p,gray40"
+)
+` : ''}
+# Garis Pantai & Daratan
+fig.coast(
+    region=region,
+    projection=projection,
+    shorelines="0.6p,gray20",
+    resolution="f"
+)
+${showAsc ? `
+# 4. InSAR Ascending Footprint (${asc.frame})
+asc_x = [${asc.ul[0]}, ${asc.ur[0]}, ${asc.lr[0]}, ${asc.ll[0]}, ${asc.ul[0]}]
+asc_y = [${asc.ul[1]}, ${asc.ur[1]}, ${asc.lr[1]}, ${asc.ll[1]}, ${asc.ul[1]}]
+fig.plot(x=asc_x, y=asc_y, pen="1.8p,cyan3", fill="cyan3@80")
+fig.text(
+    x=${((asc.ul[0] + asc.ur[0] + asc.lr[0] + asc.ll[0]) / 4).toFixed(3)},
+    y=${((asc.ul[1] + asc.ur[1] + asc.lr[1] + asc.ll[1]) / 4).toFixed(3)},
+    text="Asc: ${asc.frame}",
+    font="9p,Helvetica-Bold,cyan4"
+)
+` : ''}${showDsc ? `
+# 5. InSAR Descending Footprint (${dsc.frame})
+dsc_x = [${dsc.ul[0]}, ${dsc.ur[0]}, ${dsc.lr[0]}, ${dsc.ll[0]}, ${dsc.ul[0]}]
+dsc_y = [${dsc.ul[1]}, ${dsc.ur[1]}, ${dsc.lr[1]}, ${dsc.ll[1]}, ${dsc.ul[1]}]
+fig.plot(x=dsc_x, y=dsc_y, pen="1.8p,magenta3,--", fill="magenta3@80")
+fig.text(
+    x=${((dsc.ul[0] + dsc.ur[0] + dsc.lr[0] + dsc.ll[0]) / 4).toFixed(3)},
+    y=${((dsc.ul[1] + dsc.ur[1] + dsc.lr[1] + dsc.ll[1]) / 4).toFixed(3)},
+    text="Dsc: ${dsc.frame}",
+    font="9p,Helvetica-Bold,magenta4"
+)
+` : ''}${showFaults ? `
+# 6. Active Faults (Standard: Bird, 2003 / PUSGEN)
+fig.plot(
+    data="https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json",
+    pen="1.8p,red3"
+)
+` : ''}${showPusgen ? `
+# 6b. Faults PusGeN 2024 (file: pusgen_fault_2024.txt)
+def read_pusgen(path):
+    segments, pts = [], []
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or "=" in line:
+                if pts:
+                    segments.append(pts)
+                    pts = []
+                continue
+            lon, lat = line.split(",")[:2]
+            pts.append((float(lon), float(lat)))
+    if pts:
+        segments.append(pts)
+    return segments
+
+for seg in read_pusgen("pusgen_fault_2024.txt"):
+    xs, ys = zip(*seg)
+    fig.plot(x=list(xs), y=list(ys), pen="1p,magenta3")
+` : ''}${showEq ? `
+# 6c. Gempa M >= 5 (USGS, sejak ${eqStart}); diameter lingkaran sebanding dengan magnitudo
+eq = pd.read_csv(
+    "https://earthquake.usgs.gov/fdsnws/event/1/query?format=csv&minmagnitude=5"
+    "&starttime=${eqStart}&minlatitude=${minLat}&maxlatitude=${maxLat}"
+    "&minlongitude=${minLon}&maxlongitude=${maxLon}&orderby=magnitude&limit=20000"
+)
+eq = eq.sort_values("mag", ascending=False)
+fig.plot(
+    x=eq["longitude"],
+    y=eq["latitude"],
+    size=0.08 * (eq["mag"] - 3.0).clip(lower=0.5) ** 2,
+    style="cc",
+    fill="255/165/0@50",
+    pen="0.4p,black"
+)
+` : ''}${showVolcanoes ? `
+# 7. Holocene Volcanoes (Smithsonian GVP Catalog)
+df_v = pd.read_csv("volcanoes-2026-11-06_20-20-10_+0700.tsv", sep="\\t").dropna(subset=['Latitude', 'Longitude'])
+v_in_reg = df_v[
+    (df_v['Longitude'] >= ${minLon}) & (df_v['Longitude'] <= ${maxLon}) &
+    (df_v['Latitude'] >= ${minLat}) & (df_v['Latitude'] <= ${maxLat})
+]
+if not v_in_reg.empty:
+    fig.plot(
+        x=v_in_reg['Longitude'].values,
+        y=v_in_reg['Latitude'].values,
+        style="t0.35c",
+        fill="red3",
+        pen="0.6p,black"
+    )
+` : ''}${showGps ? `
+# 7b. GNSS Stations (blue circle, ${gpsSize} pt)
+gps_stations = [
+${gpsStations.map(s => `    ("${s.id}", ${s.lat}, ${s.lon}),`).join('\n')}
+]
+gps_lat = [s[1] for s in gps_stations]
+gps_lon = [s[2] for s in gps_stations]
+fig.plot(
+    x=gps_lon,
+    y=gps_lat,
+    style="c${gpsSize}p",
+    fill="blue",
+    pen="0.6p,black"
+)
+${showGpsLabels ? `fig.text(
+    x=gps_lon,
+    y=gps_lat,
+    text=[s[0] for s in gps_stations],
+    justify="BC",
+    offset="0/${(gpsSize / 2 + 2).toFixed(1)}p",
+    font="8p,Helvetica-Bold,black",
+    fill="white@30",
+    clearance="0.5p/0.5p"
+)
+` : ''}` : ''}${showScalebar ? `
+# 8. Scalebar Southwest (Pojok Kiri Bawah) dengan Transparansi 60%
+fig.basemap(
+    map_scale="x0.6c/0.6c+c${minLat}+w${scaleKm}k+lkm+f+jBL",
+    box="+gwhite@40+p0.5p,gray30+r2p"
+)
+` : ''}
+# 9. Scientific Colorbar (Angka Bulat Utuh)
+fig.colorbar(
+    position="${cbarOrientation}",
+    box=False,
+    frame=["a1000", "x+lElevation", "y+lm"]
+)
+
+# 10. Save Output Figure (300 DPI)
+fig.savefig("id_geomap_output.png", dpi=300)
+fig.savefig("id_geomap_output.jpg", dpi=300)
+print("Peta selesai digenerate pada resolusi 300 DPI.")
+`;
+      document.getElementById('codeBlock').innerText = script;
+    }
+
+    // --- 3. BACKEND API CALL & MODAL CONTROLS ---
     const modal = document.getElementById('modalPreview');
+    const btnGenerate = document.getElementById('btnGenerate');
 
     btnGenerate.addEventListener('click', async () => {
+      if (isAdmin() && document.getElementById('chkInsarOutput').checked) {
+        const vmin = parseFloat(document.getElementById('insarVmin').value);
+        const vmax = parseFloat(document.getElementById('insarVmax').value);
+        if (!insarData) {
+          alert('Overlay InSAR pada Generate Map aktif, tetapi belum ada file KMZ.\nPilih file .kmz di menu Radar Displacements.');
+          return;
+        }
+        if (!isFinite(vmin) || !isFinite(vmax) || vmax <= vmin) {
+          alert('Isi nilai Colorbar min dan max untuk InSAR (max harus lebih besar dari min).');
+          return;
+        }
+      }
+      if (document.getElementById('chkGps').checked && gpsStations.length === 0) {
+        alert('Plot GNSS aktif, tetapi belum ada data stasiun.\nPilih file dengan format "ID lat lon" atau matikan opsi GNSS Stations.');
+        return;
+      }
       btnGenerate.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Rendering PyGMT...';
       btnGenerate.disabled = true;
+
+      const asc = getCoords('asc');
+      const dsc = getCoords('dsc');
 
       const payload = {
         minLon: normalizeLon(parseFloat(document.getElementById('minLon').value)),
@@ -988,77 +1906,152 @@
         cptType: document.getElementById('cptType').value,
         cbarPos: document.getElementById('cbarPos').value,
         frameStyle: document.getElementById('frameStyle').value,
+        
         showScalebar: document.getElementById('chkScalebar').checked,
         scalebarKm: parseInt(document.getElementById('scalebarKm').value),
+        
         showFaults: document.getElementById('chkFaults').checked,
         showPusgen: document.getElementById('chkPusgen').checked,
         showVolcanoes: document.getElementById('chkVolcanoes').checked,
         showContours: document.getElementById('chkContours').checked,
-        showQuakes: document.getElementById('chkQuakes').checked,
+        showEq: document.getElementById('chkEq').checked,
         showGps: document.getElementById('chkGps').checked,
-        gpsSize: parseFloat(document.getElementById('gpsSize').value) || 12,
+        gpsSize: getGpsSize(),
         gpsLabels: document.getElementById('chkGpsLabel').checked,
         gpsStations: gpsStations,
         showAsc: document.getElementById('chkAsc').checked,
-        ascCoords: getCoords('asc'),
-        ascFrame: document.getElementById('ascFrameNo').value,
+        ascCoords: asc,
+        ascFrame: asc.frame,
         showDsc: document.getElementById('chkDsc').checked,
-        dscCoords: getCoords('dsc'),
-        dscFrame: document.getElementById('dscFrameNo').value,
-        // Admin InSAR Burn to PyGMT
-        burnInsar: isAdmin && document.getElementById('chkPyGMTInsarOverlay')?.checked
+        dscCoords: dsc,
+        dscFrame: dsc.frame
       };
 
       try {
-        const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-          ? 'http://127.0.0.1:5001'
-          : 'https://pygmterator-production.up.railway.app';
+        // Gempa: tunggu data bila masih dimuat, lalu kirim hanya yang berada di region peta
+        if (payload.showEq) {
+          if (eqPromise) { try { await eqPromise; } catch (e) { /* status sudah ditampilkan */ } }
+          payload.eqEvents = eqEvents
+            .filter(ev => ev.lon >= payload.minLon && ev.lon <= payload.maxLon && ev.lat >= payload.minLat && ev.lat <= payload.maxLat)
+            .map(ev => ({ lon: ev.lon, lat: ev.lat, mag: ev.mag }));
+        }
+        // Overlay InSAR pada hasil (khusus administrator; server memverifikasi token)
+        payload.insarOverlay = await buildInsarOverlayPayload();
 
         const response = await fetch(`${API_BASE}/api/generate-map`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
           body: JSON.stringify(payload)
         });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.message || `Server error with status code: ${response.status}`);
+        }
 
         const resData = await response.json();
         if (resData.status === 'success') {
           lastGeneratedBase64 = resData.image_base64;
           document.getElementById('pygmtResultImg').src = resData.image_base64;
+          updatePyGMTCode();
+
           modal.classList.remove('hidden');
           modal.classList.add('flex');
+          if (isAdmin() && Array.isArray(resData.warnings) && resData.warnings.some(w => w.includes('hanya tersedia untuk administrator'))) {
+            clearAdminSession();   // token kedaluwarsa/tidak sah di server
+          }
+          if (Array.isArray(resData.warnings) && resData.warnings.length > 0) {
+            setTimeout(() => alert('Catatan dari server:\n- ' + resData.warnings.join('\n- ')), 300);
+          }
         } else {
           alert('PyGMT Error: ' + resData.message);
         }
       } catch (err) {
         alert('Gagal menyambung ke server PyGMT:\n' + err.message);
+        console.error(err);
       } finally {
         btnGenerate.innerHTML = '<i class="fa-solid fa-play"></i> Generate Map';
         btnGenerate.disabled = false;
       }
     });
 
+    // Close Modal
     document.getElementById('btnCloseModal').addEventListener('click', () => {
-      modal.classList.add('hidden'); modal.classList.remove('flex');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
     });
 
-    // Download handlers
-    document.getElementById('btnExportPNG').addEventListener('click', () => {
-      const a = document.createElement('a'); a.download = 'ID_Geomap_PyGMT.png'; a.href = lastGeneratedBase64; a.click();
+    // Modal Tabs
+    const modalTabCanvas = document.getElementById('modalTabCanvas');
+    const modalTabCode = document.getElementById('modalTabCode');
+    const modalCanvasWrapper = document.getElementById('modalCanvasWrapper');
+    const modalCodeWrapper = document.getElementById('modalCodeWrapper');
+
+    modalTabCanvas.addEventListener('click', () => {
+      modalCanvasWrapper.classList.remove('hidden');
+      modalCanvasWrapper.classList.add('flex');
+      modalCodeWrapper.classList.add('hidden');
+      modalCodeWrapper.classList.remove('flex');
+      modalTabCanvas.classList.add('bg-slate-700', 'text-emerald-400');
+      modalTabCode.classList.remove('bg-slate-700', 'text-emerald-400');
     });
+
+    modalTabCode.addEventListener('click', () => {
+      modalCanvasWrapper.classList.add('hidden');
+      modalCanvasWrapper.classList.remove('flex');
+      modalCodeWrapper.classList.remove('hidden');
+      modalCodeWrapper.classList.add('flex');
+      modalTabCode.classList.add('bg-slate-700', 'text-emerald-400');
+      modalTabCanvas.classList.remove('bg-slate-700', 'text-emerald-400');
+    });
+
+    // Downloads
+    document.getElementById('btnExportPNG').addEventListener('click', () => {
+      if (!lastGeneratedBase64) return;
+      const link = document.createElement('a');
+      link.download = 'ID_Geomap_PyGMT.png';
+      link.href = lastGeneratedBase64;
+      link.click();
+    });
+
     document.getElementById('btnExportJPG').addEventListener('click', () => {
+      if (!lastGeneratedBase64) return;
       const img = new Image();
       img.onload = () => {
-        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
-        const ctx = c.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,c.width,c.height);
+        const c = document.createElement('canvas');
+        c.width = img.width;
+        c.height = img.height;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, c.width, c.height);
         ctx.drawImage(img, 0, 0);
-        const a = document.createElement('a'); a.download = 'ID_Geomap_PyGMT.jpg'; a.href = c.toDataURL('image/jpeg', 0.95); a.click();
+        const link = document.createElement('a');
+        link.download = 'ID_Geomap_PyGMT.jpg';
+        link.href = c.toDataURL('image/jpeg', 0.95);
+        link.click();
       };
       img.src = lastGeneratedBase64;
     });
 
-    // Listeners update overlays
-    ['chkAsc', 'chkDsc'].forEach(id => document.getElementById(id).addEventListener('change', updateMapOverlays));
-    window.addEventListener('load', () => { updateMapOverlays(); });
+    // Copy Code
+    document.getElementById('btnCopyCode').addEventListener('click', () => {
+      navigator.clipboard.writeText(document.getElementById('codeBlock').innerText);
+      alert('Script PyGMT berhasil disalin ke clipboard.');
+    });
+
+    // Change listeners for overlays
+    ['chkAsc', 'chkDsc'].forEach(id => {
+      document.getElementById(id).addEventListener('change', updateMapOverlays);
+    });
+
+    ['asc_ul_lon', 'asc_ul_lat', 'asc_ur_lon', 'asc_ur_lat', 'asc_lr_lon', 'asc_lr_lat', 'asc_ll_lon', 'asc_ll_lat',
+     'dsc_ul_lon', 'dsc_ul_lat', 'dsc_ur_lon', 'dsc_ur_lat', 'dsc_lr_lon', 'dsc_lr_lat', 'dsc_ll_lon', 'dsc_ll_lat'].forEach(id => {
+      document.getElementById(id).addEventListener('input', updateMapOverlays);
+    });
+
+    window.addEventListener('load', () => {
+      updateMapOverlays();
+    });
   </script>
 </body>
 </html>

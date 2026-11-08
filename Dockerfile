@@ -1,25 +1,17 @@
-cat << 'EOF' > Dockerfile
 FROM condaforge/miniforge3:latest
 
-# Instalasi GMT, PyGMT, dan dependensi sistem
-RUN conda install -y -c conda-forge \
-    python=3.11 \
-    gmt=6.5.0 \
-    pygmt=0.17.0 \
+RUN mamba install -y -c conda-forge \
+    pygmt \
     flask \
     flask-cors \
     pandas \
     numpy \
+    contourpy \
+    pillow \
     gunicorn \
-    && conda clean -afy
+    && mamba clean -afy
 
 WORKDIR /app
-
-# Salin file proyek
 COPY . /app
-
 EXPOSE 8000
-
-# Bind ke PORT dari Railway jika ada, fallback ke 8000
-CMD exec gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 1 --timeout 180 app:app
-EOF
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--timeout", "180", "app:app"]
