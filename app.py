@@ -283,12 +283,15 @@ def contours():
 OVERLAY_KEY_RGB = (253, 1, 252)   # warna kunci untuk piksel transparan (GMT image: -G<warna>+t)
 ALLOWED_CMAPS = {"jet", "viridis", "turbo", "roma", "vik", "polar"}
 
+# Versi API: dinaikkan setiap ada fitur server baru; index.html memeriksanya lewat GET /
+API_VERSION = 3
+
 def _mercator_y(lat_deg):
     return math.log(math.tan(math.pi / 4.0 + math.radians(lat_deg) / 2.0))
 
 def prepare_overlay_png(image_b64, west, south, east, north, region, map_width_cm=18.0):
     """Potong gambar sesuai region peta, kecilkan seperlunya, ganti piksel transparan dengan warna kunci.
-    Return (path_png, west, south, east, north, lebar_cm, tinggi_cm) atau None bila tidak beririsan dengan region."""
+    Return (path_png, west, south, east, north, lebar_cm, tinggi_cm, gambar_RGBA) atau None bila tidak beririsan dengan region."""
     min_lon, max_lon, min_lat, max_lat = region
     if image_b64.startswith("data:"):
         image_b64 = image_b64.split(",", 1)[1]
@@ -338,10 +341,10 @@ def prepare_overlay_png(image_b64, west, south, east, north, region, map_width_c
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
         path = tmp.name
     Image.fromarray(rgb, "RGB").save(path, "PNG")
-    return path, w2, s2, e2, n2, w_cm, h_cm
+    return path, w2, s2, e2, n2, w_cm, h_cm, img
 
 def draw_insar_overlays(fig, region, overlays, tmp_files, warnings):
-    """Gambar semua GroundOverlay di atas basemap. Return jumlah overlay yang berhasil digambar."""
+    """Gambar semua GroundOverlay (raster KMZ / GeoTIFF RGB) di atas basemap. Return jumlah yang berhasil digambar."""
     drawn = 0
     key_spec = "{}/{}/{}+t".format(*OVERLAY_KEY_RGB)
     for idx, ov in enumerate(overlays, start=1):
@@ -357,45 +360,150 @@ def draw_insar_overlays(fig, region, overlays, tmp_files, warnings):
         if prep is None:
             warnings.append(f"Overlay InSAR #{idx}: tidak beririsan dengan region peta. Atur region ke area hasil InSAR.")
             continue
-        path, w, s, e, n, w_cm, h_cm = prep
+        path, w, s, e, n, w_cm, h_cm, rgba = prep
         tmp_files.append(path)
         position = f"g{w:.6f}/{s:.6f}+w{w_cm:.4f}c/{h_cm:.4f}c+jBL"
         try:
-            try:
-                fig.image(imagefile=path, position=position, bitcolor=key_spec)
-            except Exception:
-                fig.image(imagefile=path, position=position, G=key_spec)   # versi PyGMT tanpa alias 'bitcolor'
+            # Opsi -G<warna>+t (warna transparan) tidak punya alias di PyGMT, jadi diteruskan sebagai G=
+            fig.image(imagefile=path, position=position, G=key_spec)
+            drawn += 1
+            continue
+        except Exception as exc_key:
+            first_error = exc_key
+        try:
+            # Cadangan: PNG RGBA apa adanya (transparansi bergantung pada dukungan alpha GMT)
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+                rgba_path = tmp.name
+            tmp_files.append(rgba_path)
+            rgba.save(rgba_path, "PNG")
+            fig.image(imagefile=rgba_path, position=position)
+            warnings.append(f"Overlay InSAR #{idx}: opsi warna transparan ditolak ({first_error}); tepi data mungkin tidak transparan.")
             drawn += 1
         except Exception as exc:
             warnings.append(f"Overlay InSAR #{idx} gagal digambar oleh PyGMT: {exc}")
     return drawn
 
-def draw_insar_colorbar(fig, spec, cbar_spec, warnings):
-    """Colorbar InSAR native GMT (di bawah peta). Return True jika berhasil."""
+def make_insar_cpt(spec, tmp_files, warnings):
+    """Buat file CPT dari colormap + rentang nilai. Return path CPT atau None bila parameter tidak valid."""
     try:
         vmin = float(spec["vmin"])
         vmax = float(spec["vmax"])
     except (KeyError, TypeError, ValueError):
-        warnings.append("Colorbar InSAR tidak digambar: nilai Min/Max belum diisi dengan benar.")
-        return False
-    if not vmax > vmin:
-        warnings.append("Colorbar InSAR tidak digambar: nilai Max harus lebih besar dari Min.")
-        return False
-
+        warnings.append("Colorbar InSAR tidak dibuat: nilai Min/Max belum diisi dengan benar.")
+        return None
+    if not (math.isfinite(vmin) and math.isfinite(vmax) and vmax > vmin):
+        warnings.append("Colorbar InSAR tidak dibuat: nilai Max harus lebih besar dari Min.")
+        return None
     cmap = str(spec.get("cmap", "jet"))
     if cmap not in ALLOWED_CMAPS:
         cmap = "jet"
+    with tempfile.NamedTemporaryFile(suffix=".cpt", delete=False) as tmp:
+        path = tmp.name
+    tmp_files.append(path)
+    try:
+        pygmt.makecpt(cmap=cmap, series=[vmin, vmax], reverse=bool(spec.get("reverse", False)), continuous=True, output=path)
+    except Exception as exc:
+        warnings.append(f"CPT InSAR gagal dibuat: {exc}")
+        return None
+    return path
+
+GEOTIFF_MAX_BYTES = 40 * 1024 * 1024
+
+def draw_insar_geotiff(fig, region, proj, spec, cpt_path, tmp_files, warnings):
+    """GeoTIFF satu band (EPSG:4326) dirender langsung oleh GMT/GDAL dengan colormap + rentang yang dipilih."""
+    if cpt_path is None:
+        warnings.append("GeoTIFF tidak digambar: colormap/rentang nilai belum valid.")
+        return 0
+    b64 = str(spec.get("geotiff_base64") or "")
+    if not b64:
+        warnings.append("GeoTIFF tidak digambar: data file tidak diterima server.")
+        return 0
+    try:
+        raw = base64.b64decode(b64)
+    except Exception:
+        warnings.append("GeoTIFF tidak digambar: data file rusak.")
+        return 0
+    if len(raw) > GEOTIFF_MAX_BYTES:
+        warnings.append(f"GeoTIFF tidak digambar: ukuran melebihi {GEOTIFF_MAX_BYTES // (1024 * 1024)} MB.")
+        return 0
+    with tempfile.NamedTemporaryFile(suffix=".tif", delete=False) as tmp:
+        tmp.write(raw)
+        path = tmp.name
+    tmp_files.append(path)
+    last_error = None
+    for grid_arg in (path + "=gd", path):   # "=gd" = baca lewat GDAL
+        try:
+            fig.grdimage(grid=grid_arg, region=region, projection=proj, cmap=cpt_path, nan_transparent=True)
+            return 1
+        except Exception as exc:
+            last_error = exc
+    warnings.append(f"GeoTIFF gagal digambar oleh PyGMT/GDAL: {last_error}")
+    return 0
+
+def draw_insar_points(fig, region, spec, cpt_path, warnings):
+    """Titik deret waktu (KMZ MintPy) diberi warna menurut kecepatan rata-rata, memakai CPT yang sama dengan colorbar."""
+    if cpt_path is None:
+        warnings.append("Titik InSAR tidak digambar: colormap/rentang nilai belum valid.")
+        return 0
+    min_lon, max_lon, min_lat, max_lat = region
+    xs, ys, vs = [], [], []
+    for pt in spec.get("points", []) or []:
+        try:
+            lon = normalize_lon(float(pt["lon"]))
+            lat = float(pt["lat"])
+            val = float(pt["v"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if math.isfinite(val) and min_lon <= lon <= max_lon and min_lat <= lat <= max_lat:
+            xs.append(lon)
+            ys.append(lat)
+            vs.append(val)
+    if not xs:
+        warnings.append("Tidak ada titik InSAR di dalam region peta. Atur region ke area hasil InSAR.")
+        return 0
+    try:
+        size = min(max(float(spec.get("pointSize", 6)), 1.0), 30.0)
+    except (TypeError, ValueError):
+        size = 6.0
+    fig.plot(x=xs, y=ys, style=f"c{size:g}p", fill=vs, cmap=cpt_path, pen="0.4p,black")
+
+    ref = spec.get("refpoint")
+    if isinstance(ref, dict):
+        try:
+            ref_lon = normalize_lon(float(ref["lon"]))
+            ref_lat = float(ref["lat"])
+            color = str(ref.get("color", ""))
+            if not (len(color) == 7 and color[0] == "#" and all(ch in "0123456789abcdefABCDEF" for ch in color[1:])):
+                color = "#77ff80"
+            if min_lon <= ref_lon <= max_lon and min_lat <= ref_lat <= max_lat:
+                fig.plot(x=[ref_lon], y=[ref_lat], style=f"a{size * 2:g}p", fill=color, pen="0.8p,black")
+        except (KeyError, TypeError, ValueError):
+            pass
+    return 1
+
+def draw_insar_layers(fig, region, proj, spec, cpt_path, tmp_files, warnings):
+    """Pilih cara menggambar sesuai jenis data: raster (gambar), geotiff, atau points. Return jumlah layer tergambar."""
+    kind = spec.get("kind") or ("raster" if spec.get("images") else "")
+    if kind in ("raster", "images"):
+        return draw_insar_overlays(fig, region, spec.get("images", []) or [], tmp_files, warnings)
+    if kind == "geotiff":
+        return draw_insar_geotiff(fig, region, proj, spec, cpt_path, tmp_files, warnings)
+    if kind == "points":
+        return draw_insar_points(fig, region, spec, cpt_path, warnings)
+    warnings.append("Jenis data InSAR tidak dikenali; overlay diabaikan.")
+    return 0
+
+def draw_insar_colorbar(fig, spec, cpt_path, cbar_spec, warnings):
+    """Colorbar InSAR native GMT (di bawah peta atau di kanan)."""
     forbidden = set('+"\'\\@|')   # karakter khusus GMT (modifier '+', kutip, backslash, escape '@', '|')
     label = "".join(ch for ch in str(spec.get("label", "")) if ch not in forbidden)[:80].strip()
-
-    pygmt.makecpt(cmap=cmap, series=[vmin, vmax], reverse=bool(spec.get("reverse", False)), continuous=True)
     with pygmt.config(FORMAT_FLOAT_MAP="%g"):
         try:
             frame = ["a", f"x+l{label}"] if label else ["a"]
-            fig.colorbar(position=cbar_spec, box=False, frame=frame)
+            fig.colorbar(cmap=cpt_path, position=cbar_spec, box=False, frame=frame)
         except Exception as exc:
             warnings.append(f"Label colorbar InSAR tidak dapat dipakai ({exc}); colorbar digambar tanpa label.")
-            fig.colorbar(position=cbar_spec, box=False, frame=["a"])
+            fig.colorbar(cmap=cpt_path, position=cbar_spec, box=False, frame=["a"])
     return True
 
 @app.route('/', methods=['GET'])
@@ -403,6 +511,7 @@ def index():
     return jsonify({
         "status": "online",
         "service": "PyGMT Cartographic API",
+        "api_version": API_VERSION,
         "volcanoes_loaded": len(df_volcanoes),
         "pusgen_segments_loaded": len(pusgen_faults),
         "admin_login_configured": bool(ADMIN_USERNAME and ADMIN_PASSWORD),
@@ -444,6 +553,7 @@ def generate_map():
         show_volcanoes = data.get('showVolcanoes', False)
         show_contours = data.get('showContours', False)
         show_pusgen = data.get('showPusgen', False)
+        client_pusgen = data.get('pusgenSegments')   # [[[lon, lat], ...], ...] dari browser (tidak bergantung pada file server)
 
         # Gempa M>=5 (data dari USGS dimuat di browser lalu dikirim ke sini)
         show_eq = data.get('showEq', False)
@@ -544,8 +654,10 @@ def generate_map():
 
         # A2. Overlay hasil InSAR (administrator) di atas basemap, di bawah kontur/garis pantai/layer lain
         insar_drawn = 0
+        insar_cpt = None
         if use_insar:
-            insar_drawn = draw_insar_overlays(fig, region, insar_req.get("images", []) or [], tmp_files, warnings)
+            insar_cpt = make_insar_cpt(insar_req, tmp_files, warnings)
+            insar_drawn = draw_insar_layers(fig, region, proj, insar_req, insar_cpt, tmp_files, warnings)
 
        # B. Kontur Elevasi: Interval 200m, Anotasi Angka Bulat, Khusus Darat (>= 200m)
         if show_contours:
@@ -590,25 +702,40 @@ def generate_map():
             except Exception:
                 pass
 
-        # D2. Patahan PusGeN 2024 (hanya segmen yang beririsan dengan region peta)
-        if show_pusgen and not pusgen_faults:
-            warnings.append("Layer PusGeN tidak digambar: file pusgen_fault_2024.txt tidak ditemukan/terbaca di server.")
-        if show_pusgen and pusgen_faults:
-            segs_in = [
-                sg for sg in pusgen_faults
-                if sg["max_lon"] >= min_lon and sg["min_lon"] <= max_lon
-                and sg["max_lat"] >= min_lat and sg["min_lat"] <= max_lat
-            ]
-            if segs_in:
+        # D2. Patahan PusGeN 2024: utamakan geometri kiriman browser; cadangan: file di server
+        if show_pusgen:
+            seg_lists = []
+            source = ""
+            if isinstance(client_pusgen, list) and client_pusgen:
+                source = "browser"
+                for seg in client_pusgen:
+                    try:
+                        pts = [(float(pt[0]), float(pt[1])) for pt in seg]
+                    except (TypeError, ValueError, IndexError):
+                        continue
+                    if len(pts) > 1:
+                        seg_lists.append(pts)
+            elif pusgen_faults:
+                source = "server"
+                seg_lists = [
+                    sg["pts"] for sg in pusgen_faults
+                    if sg["max_lon"] >= min_lon and sg["min_lon"] <= max_lon
+                    and sg["max_lat"] >= min_lat and sg["min_lat"] <= max_lat
+                ]
+            else:
+                warnings.append("Layer PusGeN tidak digambar: file pusgen_fault_2024.txt tidak ada di server dan browser tidak mengirim data patahan.")
+
+            if seg_lists:
                 with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp_f:
-                    for sg in segs_in:
+                    for pts in seg_lists:
                         tmp_f.write(">\n")
-                        for lon, lat in sg["pts"]:
+                        for lon, lat in pts:
                             tmp_f.write(f"{lon:.5f} {lat:.5f}\n")
                     pusgen_path = tmp_f.name
                 tmp_files.append(pusgen_path)
                 fig.plot(data=pusgen_path, pen="1p,magenta3")
-            else:
+                print(f"PusGeN: {len(seg_lists)} segmen digambar (sumber: {source}).")
+            elif source:
                 warnings.append("Tidak ada segmen patahan PusGeN pada region peta ini.")
 
         # D3. Gempa M>=5 (USGS): lingkaran, ukuran sebanding dengan magnitudo
@@ -704,9 +831,9 @@ def generate_map():
 
         # G. Colorbar: InSAR (jika overlay aktif) atau elevasi (kecuali mode hillshade)
         cbar_spec = "JMR+w8c/0.5c+o1.0c/0c" if cbar_pos == "right" else "JBC+w10c/0.5c+o0c/1.4c+h"
-        if use_insar and insar_drawn > 0:
-            draw_insar_colorbar(fig, insar_req, cbar_spec, warnings)
-        elif not is_hillshade:
+        if use_insar and insar_drawn > 0 and insar_cpt:
+            draw_insar_colorbar(fig, insar_req, insar_cpt, cbar_spec, warnings)
+        elif not is_hillshade and not (use_insar and insar_drawn > 0):
             fig.colorbar(
                 position=cbar_spec,
                 box=False,

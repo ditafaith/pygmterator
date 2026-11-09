@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Phase Explorer</title>
+  <title>Bakuru Mappu</title>
   
   <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -17,6 +17,8 @@
 
   <!-- JSZip (membaca file KMZ hasil MintPy) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- geotiff.js (membaca file GeoTIFF di browser) -->
+  <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
@@ -255,7 +257,7 @@
       <section class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60 space-y-2.5">
         <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
           <span class="flex items-center gap-2"><i class="fa-solid fa-satellite-dish text-emerald-400"></i> Radar Displacements</span>
-          <span class="text-[10px] text-slate-400">KMZ</span>
+          <span class="text-[10px] text-slate-400">KMZ / GeoTIFF</span>
         </label>
 
         <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-slate-800 cursor-pointer text-xs">
@@ -263,7 +265,7 @@
           <span class="text-slate-200">Show InSAR results (overlay on map)</span>
         </label>
 
-        <input id="insarFile" type="file" accept=".kmz" class="block w-full text-[11px] text-slate-300 cursor-pointer file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-700 file:text-emerald-300 hover:file:bg-slate-600">
+        <input id="insarFile" type="file" accept=".kmz,.tif,.tiff" class="block w-full text-[11px] text-slate-300 cursor-pointer file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-700 file:text-emerald-300 hover:file:bg-slate-600">
 
         <div class="flex items-center gap-2 text-xs">
           <span class="text-slate-400 shrink-0">Opacity</span>
@@ -277,14 +279,10 @@
         <button id="btnInsarRegion" type="button" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">
           <i class="fa-solid fa-vector-square mr-1"></i> Set region to result
         </button>
-        <p id="insarStatus" class="text-[10px] text-slate-400 leading-relaxed">Pilih file .kmz hasil MintPy (contoh: velocity.kmz).</p>
+        <p id="insarStatus" class="text-[10px] text-slate-400 leading-relaxed">Pilih file hasil InSAR: .kmz (MintPy: raster atau deret waktu titik) atau GeoTIFF (.tif, EPSG:4326).</p>
 
-        <!-- Khusus administrator: overlay InSAR pada hasil Generate Map -->
-        <div id="insarAdminBlock" class="hidden border-t border-slate-700/60 pt-2.5 space-y-2">
-          <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-amber-500/40 cursor-pointer text-xs">
-            <input id="chkInsarOutput" type="checkbox" class="w-3.5 h-3.5 rounded text-amber-500 bg-slate-800 border-slate-700">
-            <span class="text-slate-200"><i class="fa-solid fa-user-shield text-amber-400 mr-1"></i> Overlay pada Generate Map</span>
-          </label>
+        <!-- Pengaturan warna: dipakai pratinjau GeoTIFF / titik deret waktu, dan colorbar pada Generate Map -->
+        <div id="insarStyleBlock" class="border-t border-slate-700/60 pt-2.5 space-y-2">
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div>
               <span class="text-slate-400 block mb-1">Colormap</span>
@@ -292,9 +290,9 @@
                 <option value="jet" selected>jet (MintPy default)</option>
                 <option value="viridis">viridis</option>
                 <option value="turbo">turbo</option>
-                <option value="roma">roma</option>
-                <option value="vik">vik</option>
-                <option value="polar">polar</option>
+                <option value="roma">roma (pratinjau &asymp;)</option>
+                <option value="vik">vik (pratinjau &asymp;)</option>
+                <option value="polar">polar (pratinjau &asymp;)</option>
               </select>
             </div>
             <label class="flex items-end gap-1.5 pb-1.5 cursor-pointer text-slate-200">
@@ -313,7 +311,21 @@
             <span class="text-slate-400 block mb-1">Colorbar label</span>
             <input id="insarCbarLabel" type="text" value="Mean LOS velocity (cm/year)" class="select-text w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:border-emerald-500">
           </div>
-          <p class="text-[10px] text-slate-500 leading-relaxed">Min/Max dan colormap harus sama dengan yang dipakai saat membuat KMZ di MintPy. Disarankan basemap Hillshade (Cartographic Layout) dan region disetel ke area hasil.</p>
+          <p class="text-[10px] text-slate-500 leading-relaxed">Untuk GeoTIFF dan titik deret waktu, rentang terisi otomatis dari data dan bisa diubah. Untuk KMZ raster, Min/Max dan colormap harus sama dengan yang dipakai saat membuat KMZ di MintPy.</p>
+        </div>
+
+        <!-- Khusus administrator: overlay InSAR pada hasil Generate Map -->
+        <div id="insarAdminBlock" class="hidden border-t border-slate-700/60 pt-2.5 space-y-2">
+          <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-amber-500/40 cursor-pointer text-xs">
+            <input id="chkInsarOutput" type="checkbox" class="w-3.5 h-3.5 rounded text-amber-500 bg-slate-800 border-slate-700">
+            <span class="text-slate-200"><i class="fa-solid fa-user-shield text-amber-400 mr-1"></i> Overlay pada Generate Map</span>
+          </label>
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-slate-400">Point size (pt)</span>
+            <input id="insarPointSize" type="number" min="1" max="30" step="1" value="6" class="select-text w-16 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white font-mono text-right focus:border-emerald-500">
+            <span class="text-[10px] text-slate-500">untuk titik deret waktu</span>
+          </div>
+          <p class="text-[10px] text-slate-500 leading-relaxed">Disarankan basemap Hillshade (Cartographic Layout) dan region disetel ke area hasil (tombol Set region to result).</p>
         </div>
       </section>
 
@@ -327,7 +339,7 @@
         <label class="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded border border-slate-800 cursor-pointer text-xs">
           <input id="chkGps" type="checkbox" class="w-3.5 h-3.5 rounded text-blue-500 bg-slate-800 border-slate-700">
           <span class="text-slate-200 flex items-center gap-1.5">
-            <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span> Plot GNSS points
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span> Plot GNSS Stations (blue circle)
           </span>
         </label>
 
@@ -342,8 +354,8 @@
 
         <input id="gpsFile" type="file" class="block w-full text-[11px] text-slate-300 cursor-pointer file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-700 file:text-emerald-300 hover:file:bg-slate-600">
         <p id="gpsStatus" class="text-[10px] text-slate-400 leading-relaxed">
-          Format : <span class="font-mono text-slate-300">ID lat lon</span><br>
-          Example: <span class="font-mono text-slate-300">bako -6.309 106.203</span>
+          Format tiap baris: <span class="font-mono text-slate-300">ID lat lon</span><br>
+          Contoh: <span class="font-mono text-slate-300">bako -6.309 106.203</span>
         </p>
       </section>
 
@@ -432,9 +444,9 @@
             <div class="flex items-center gap-2 pl-6 text-[11px]">
               <span class="text-slate-400">Period</span>
               <select id="eqPeriod" class="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-white focus:border-emerald-500">
-                <option value="1" selected>Last 1 year</option>
+                <option value="1">Last 1 year</option>
                 <option value="5">Last 5 years</option>
-                <option value="10">Last 10 years</option>
+                <option value="10" selected>Last 10 years</option>
                 <option value="25">Last 25 years</option>
                 <option value="all">Since 1973</option>
               </select>
@@ -466,6 +478,7 @@
         <button id="btnGenerate" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-emerald-900/30 transition flex items-center gap-2">
           <i class="fa-solid fa-play"></i> Generate Map
         </button>
+        <span id="backendStatus" class="text-[11px] text-slate-500 leading-snug"></span>
       </div>
 
       <div class="relative flex-1 min-h-0">
@@ -792,6 +805,7 @@
     let eqKey = '';
     let eqPromise = null;
     let eqRequestId = 0;
+    let pusgenData = null;   // segmen PusGeN dari browser; dikirim ke server saat Generate Map
 
     function normalizeLon(lon) {
       while (lon > 180.0) lon -= 360.0;
@@ -979,13 +993,19 @@
     document.getElementById('gpsSize').addEventListener('input', updateGpsOverlay);
     document.getElementById('chkGpsLabel').addEventListener('change', updateGpsOverlay);
 
-    // --- VISUALIZATION INSAR RESULTS: KMZ (MintPy) SEBAGAI OVERLAY ---
-    // KMZ = zip berisi doc.kml + gambar. GroundOverlay -> imageOverlay di peta, ScreenOverlay -> legend colorbar
-    let insarData = null;      // { overlays, legends, blobUrls } dari KMZ terakhir
+    // --- RADAR DISPLACEMENTS: KMZ (raster / deret waktu titik) DAN GeoTIFF ---
+    // insarData.kind:
+    //   'raster'  : KMZ berisi GroundOverlay (gambar), atau GeoTIFF RGB  -> imageOverlay
+    //   'points'  : KMZ deret waktu MintPy (titik + time series)         -> penanda berwarna menurut kecepatan rata-rata
+    //   'geotiff' : GeoTIFF satu band (nilai numerik, EPSG:4326)         -> diwarnai dengan colormap + rentang yang dipilih
+    let insarData = null;
     const insarBlobs = new Map();   // url blob -> Blob (dikirim ke server untuk overlay pada Generate Map)
     let insarGroup = null;
     let insarLegend = null;
     let insarBounds = null;
+    let insarRestyleTimer = null;
+    const GEOTIFF_PREVIEW_MAX = 2000;                    // sisi terpanjang raster pratinjau (piksel)
+    const GEOTIFF_UPLOAD_MAX_BYTES = 25 * 1024 * 1024;   // batas ukuran GeoTIFF untuk overlay pada Generate Map
 
     function mimeFromName(name) {
       const ext = name.split('.').pop().toLowerCase();
@@ -999,6 +1019,25 @@
       if (zip.file(clean)) return zip.file(clean);
       const base = clean.split('/').pop().toLowerCase();
       return zip.file(/.*/).find(f => f.name.split('/').pop().toLowerCase() === base) || null;
+    }
+
+    function findZipEntryExact(zip, path) {
+      if (zip.file(path)) return zip.file(path);
+      const lower = path.toLowerCase();
+      return zip.file(/.*/).find(f => f.name.toLowerCase() === lower) || null;
+    }
+
+    // Path relatif di dalam KMZ (mis. NetworkLink) -> path absolut di dalam zip
+    function resolveZipPath(baseName, href) {
+      let h = href.trim();
+      try { h = decodeURIComponent(h); } catch (e) { /* pakai apa adanya */ }
+      const parts = baseName.split('/');
+      parts.pop();
+      h.split('/').forEach(seg => {
+        if (seg === '..') parts.pop();
+        else if (seg !== '.' && seg !== '') parts.push(seg);
+      });
+      return parts.join('/');
     }
 
     async function zipImageUrl(zip, href, blobUrls) {
@@ -1017,17 +1056,83 @@
       return el ? el.textContent.trim() : '';
     }
 
+    function kmlColorToCss(abgr) {   // KML aabbggrr -> #rrggbb
+      const m = /^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec((abgr || '').trim());
+      return m ? '#' + m[4] + m[3] + m[2] : null;
+    }
+
+    // Deret waktu MintPy ada di dalam deskripsi (data Dygraph): "YYYY-MM-DD, nilai\n"
+    function parseTimeSeries(desc) {
+      const series = [];
+      const re = /"(\d{4}-\d{2}-\d{2}),\s*([-+0-9.eE]+)\\n"/g;
+      let m;
+      while ((m = re.exec(desc)) !== null) series.push({ d: m[1], v: parseFloat(m[2]) });
+      return series;
+    }
+
+    function numAfter(desc, label) {
+      const m = new RegExp(label + '[^:]*:\\s*([-+]?\\d*\\.?\\d+(?:[eE][-+]?\\d+)?)').exec(desc);
+      return m ? parseFloat(m[1]) : null;
+    }
+
+    function unitAfter(desc, label) {
+      const m = new RegExp(label + '\\s*\\[([^\\]]+)\\]').exec(desc);
+      return m ? m[1] : '';
+    }
+
+    // Telusuri KML (termasuk NetworkLink bertingkat di dalam KMZ) dan kumpulkan Placemark bertipe titik
+    async function collectKmlPoints(zip, kmlPath, levelName, store, visited) {
+      if (visited.has(kmlPath)) return;
+      visited.add(kmlPath);
+      const entry = findZipEntryExact(zip, kmlPath);
+      if (!entry) return;
+      const xml = new DOMParser().parseFromString(await entry.async('string'), 'application/xml');
+      if (xml.getElementsByTagName('parsererror').length) return;
+
+      for (const pm of Array.from(xml.getElementsByTagName('Placemark'))) {
+        const pt = pm.getElementsByTagName('Point')[0];
+        if (!pt) continue;
+        const c = kmlText(pt, 'coordinates').split(/[\s,]+/).map(parseFloat);
+        if (c.length < 2 || !isFinite(c[0]) || !isFinite(c[1])) continue;
+        const desc = kmlText(pm, 'description');
+        const folder = (pm.parentNode && pm.parentNode.nodeName === 'Folder') ? kmlText(pm.parentNode, 'name') : '';
+        const rec = {
+          lon: c[0], lat: c[1], desc,
+          v: numAfter(desc, 'Mean LOS velocity'),
+          cum: numAfter(desc, 'Cumulative displacement'),
+          coh: numAfter(desc, 'Temporal coherence'),
+          unitV: unitAfter(desc, 'Mean LOS velocity'),
+          unitC: unitAfter(desc, 'Cumulative displacement'),
+          color: kmlColorToCss(kmlText(pm, 'color'))
+        };
+        if (levelName === null) {
+          if (/reference/i.test(folder + ' ' + kmlText(pm, 'name'))) store.ref = rec;
+        } else {
+          (store.levels[levelName] = store.levels[levelName] || []).push(rec);
+        }
+      }
+
+      for (const nl of Array.from(xml.getElementsByTagName('NetworkLink'))) {
+        const href = kmlText(nl, 'href');
+        if (!href || !/\.kml$/i.test(href)) continue;
+        const child = resolveZipPath(kmlPath, href);
+        await collectKmlPoints(zip, child, levelName || kmlText(nl, 'name') || child, store, visited);
+      }
+    }
+
     async function readKmz(file) {
       if (typeof JSZip === 'undefined') throw new Error('Library JSZip gagal dimuat (periksa koneksi internet).');
       const blobUrls = [];
       try {
         const zip = await JSZip.loadAsync(file);
         const kmlFiles = zip.file(/\.kml$/i);
-        const kmlEntry = kmlFiles.find(f => f.name.toLowerCase().endsWith('doc.kml')) || kmlFiles[0];
+        const rootLevel = kmlFiles.filter(f => !f.name.includes('/'));
+        const kmlEntry = kmlFiles.find(f => f.name.toLowerCase() === 'doc.kml') || rootLevel[0] || kmlFiles[0];
         if (!kmlEntry) throw new Error('File .kml tidak ditemukan di dalam KMZ.');
         const xml = new DOMParser().parseFromString(await kmlEntry.async('string'), 'application/xml');
         if (xml.getElementsByTagName('parsererror').length) throw new Error('Isi KML tidak valid.');
 
+        // (a) KMZ raster: GroundOverlay
         const overlays = [];
         let rotated = false;
         for (const go of Array.from(xml.getElementsByTagName('GroundOverlay'))) {
@@ -1041,23 +1146,284 @@
           if (isFinite(rot) && rot !== 0) rotated = true;
           overlays.push({ url, blob: insarBlobs.get(url), bounds: [[south, west], [north, east]] });
         }
-
-        const legends = [];
-        for (const so of Array.from(xml.getElementsByTagName('ScreenOverlay'))) {
-          const href = kmlText(so, 'href');
-          if (!href) continue;
-          const url = await zipImageUrl(zip, href, blobUrls);
-          if (!url) continue;
-          const sizeEl = so.getElementsByTagName('size')[0];
-          const sx = sizeEl ? parseFloat(sizeEl.getAttribute('x')) : 0;
-          const sy = sizeEl ? parseFloat(sizeEl.getAttribute('y')) : 0;
-          legends.push({ url, w: (sy > 0 ? 0 : (sx > 0 ? sx : 0)), h: (sy > 0 ? sy : (sx > 0 ? 0 : 250)) });
+        if (overlays.length > 0) {
+          const legends = [];
+          for (const so of Array.from(xml.getElementsByTagName('ScreenOverlay'))) {
+            const href = kmlText(so, 'href');
+            if (!href) continue;
+            const url = await zipImageUrl(zip, href, blobUrls);
+            if (!url) continue;
+            const sizeEl = so.getElementsByTagName('size')[0];
+            const sx = sizeEl ? parseFloat(sizeEl.getAttribute('x')) : 0;
+            const sy = sizeEl ? parseFloat(sizeEl.getAttribute('y')) : 0;
+            legends.push({ url, w: (sy > 0 ? 0 : (sx > 0 ? sx : 0)), h: (sy > 0 ? sy : (sx > 0 ? 0 : 250)) });
+          }
+          return { kind: 'raster', overlays, legends, blobUrls, rotated };
         }
-        return { overlays, legends, blobUrls, rotated };
+
+        // (b) KMZ deret waktu MintPy (save_kmz_timeseries): titik + NetworkLink bertingkat per tingkat detail (20by20, 5by5, ...)
+        const store = { ref: null, levels: {} };
+        await collectKmlPoints(zip, kmlEntry.name, null, store, new Set());
+        let bestName = '', best = [];
+        Object.keys(store.levels).forEach(k => {
+          if (store.levels[k].length > best.length) { best = store.levels[k]; bestName = k; }
+        });
+        const points = best.filter(p => isFinite(p.v));
+        if (points.length === 0) throw new Error('KMZ tidak berisi gambar (GroundOverlay) maupun titik data bernilai kecepatan.');
+        return { kind: 'points', overlays: [], legends: [], blobUrls, points, refPoint: store.ref, level: bestName, rotated: false };
       } catch (err) {
-        blobUrls.forEach(u => URL.revokeObjectURL(u));
+        blobUrls.forEach(u => { URL.revokeObjectURL(u); insarBlobs.delete(u); });
         throw err;
       }
+    }
+
+    // --- GeoTIFF (geotiff.js) ---
+    async function readGeoTiff(file) {
+      if (typeof GeoTIFF === 'undefined') throw new Error('Library geotiff.js gagal dimuat (periksa koneksi internet).');
+      const tiff = await GeoTIFF.fromArrayBuffer(await file.arrayBuffer());
+      const image = await tiff.getImage();
+      const keys = (image.getGeoKeys && image.getGeoKeys()) || {};
+      if (keys.GTModelTypeGeoKey === 1) {
+        throw new Error(`GeoTIFF berproyeksi (EPSG:${keys.ProjectedCSTypeGeoKey || '?'}). Reproyeksi dulu ke EPSG:4326, contoh: gdalwarp -t_srs EPSG:4326 masukan.tif keluaran.tif`);
+      }
+      let bbox;
+      try { bbox = image.getBoundingBox(); } catch (e) { throw new Error('GeoTIFF tidak memiliki georeferensi.'); }
+      const west = bbox[0], south = bbox[1], east = bbox[2], north = bbox[3];
+      if (!(Math.abs(south) <= 90 && Math.abs(north) <= 90 && west >= -180 && east <= 360 && east > west && north > south)) {
+        throw new Error('Koordinat GeoTIFF bukan lintang/bujur (EPSG:4326). Reproyeksi dulu ke EPSG:4326.');
+      }
+      const bounds = [[south, west], [north, east]];
+      const W = image.getWidth(), H = image.getHeight();
+      const scale = Math.min(1, GEOTIFF_PREVIEW_MAX / Math.max(W, H));
+      const w2 = Math.max(1, Math.round(W * scale)), h2 = Math.max(1, Math.round(H * scale));
+      const spp = image.getSamplesPerPixel();
+
+      // GeoTIFF warna (RGB/RGBA 8-bit) diperlakukan sebagai gambar biasa
+      if (spp >= 3 && image.getBitsPerSample(0) === 8) {
+        const samples = spp >= 4 ? [0, 1, 2, 3] : [0, 1, 2];
+        const r = await image.readRasters({ samples, width: w2, height: h2, resampleMethod: 'nearest' });
+        const canvas = document.createElement('canvas');
+        canvas.width = w2; canvas.height = h2;
+        const ctx = canvas.getContext('2d');
+        const id = ctx.createImageData(w2, h2);
+        for (let i = 0; i < w2 * h2; i++) {
+          id.data[4 * i] = r[0][i]; id.data[4 * i + 1] = r[1][i]; id.data[4 * i + 2] = r[2][i];
+          id.data[4 * i + 3] = spp >= 4 ? r[3][i] : 255;
+        }
+        ctx.putImageData(id, 0, 0);
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        const url = URL.createObjectURL(blob);
+        insarBlobs.set(url, blob);
+        return { kind: 'raster', overlays: [{ url, blob, bounds }], legends: [], blobUrls: [url], rotated: false };
+      }
+
+      // GeoTIFF satu band: nilai numerik
+      const r = await image.readRasters({ samples: [0], width: w2, height: h2, resampleMethod: 'nearest' });
+      const raw = r[0];
+      const nodata = image.getGDALNoData();
+      const values = new Float32Array(w2 * h2);
+      const sorted = new Float32Array(w2 * h2);
+      let n = 0;
+      for (let i = 0; i < values.length; i++) {
+        const v = raw[i];
+        if (!isFinite(v) || (nodata !== null && v === nodata)) {
+          values[i] = NaN;
+        } else {
+          values[i] = v;
+          sorted[n++] = v;
+        }
+      }
+      if (n === 0) throw new Error('GeoTIFF tidak berisi nilai yang valid.');
+      const valid = sorted.subarray(0, n);
+      valid.sort();
+      const pct = p => valid[Math.min(n - 1, Math.max(0, Math.floor(p * (n - 1))))];
+      return {
+        kind: 'geotiff', overlays: [], legends: [], blobUrls: [], rotated: false,
+        geotiff: { file, width: w2, height: h2, fullWidth: W, fullHeight: H, bounds, values, nodata, vmin: pct(0.02), vmax: pct(0.98) }
+      };
+    }
+
+    // --- Colormap untuk pratinjau (hasil akhir memakai colormap GMT yang sama namanya) ---
+    function clamp01(t) { return t < 0 ? 0 : (t > 1 ? 1 : t); }
+
+    function lerpStops(stops, t) {
+      const n = stops.length - 1;
+      const x = clamp01(t) * n;
+      const i = Math.min(n - 1, Math.floor(x));
+      const f = x - i;
+      const a = stops[i], b = stops[i + 1];
+      return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+    }
+
+    const CMAP_STOPS = {
+      viridis: [[68, 1, 84], [71, 45, 123], [59, 82, 139], [44, 114, 142], [33, 145, 140], [40, 174, 128], [94, 201, 98], [173, 220, 48], [253, 231, 37]],
+      roma: [[126, 23, 0], [200, 156, 36], [160, 225, 200], [49, 134, 214], [2, 49, 152]],
+      vik: [[0, 18, 97], [31, 110, 178], [231, 221, 214], [189, 92, 36], [89, 0, 8]],
+      polar: [[0, 0, 255], [255, 255, 255], [255, 0, 0]]
+    };
+
+    function cmapRGB(name, t) {
+      t = clamp01(t);
+      if (name === 'jet') {
+        const r = t < 0.35 ? 0 : t < 0.66 ? (t - 0.35) / 0.31 : t < 0.89 ? 1 : 1 - 0.5 * (t - 0.89) / 0.11;
+        const g = t < 0.125 ? 0 : t < 0.375 ? (t - 0.125) / 0.25 : t < 0.64 ? 1 : t < 0.91 ? 1 - (t - 0.64) / 0.27 : 0;
+        const b = t < 0.11 ? 0.5 + 0.5 * t / 0.11 : t < 0.34 ? 1 : t < 0.65 ? 1 - (t - 0.34) / 0.31 : 0;
+        return [r * 255, g * 255, b * 255];
+      }
+      if (name === 'turbo') {
+        const r = 0.13572138 + t * (4.61539260 + t * (-42.66032258 + t * (132.13108234 + t * (-152.94239396 + t * 59.28637943))));
+        const g = 0.09140261 + t * (2.19418839 + t * (4.84296658 + t * (-14.18503333 + t * (4.27729857 + t * 2.82956604))));
+        const b = 0.10667330 + t * (12.64194608 + t * (-60.58204836 + t * (110.36276771 + t * (-89.90310912 + t * 27.34824973))));
+        return [clamp01(r) * 255, clamp01(g) * 255, clamp01(b) * 255];
+      }
+      return lerpStops(CMAP_STOPS[name] || CMAP_STOPS.viridis, t);
+    }
+
+    function buildLut(name, reverse) {
+      const lut = new Uint8ClampedArray(256 * 3);
+      for (let i = 0; i < 256; i++) {
+        const rgb = cmapRGB(name, reverse ? 1 - i / 255 : i / 255);
+        lut[i * 3] = rgb[0]; lut[i * 3 + 1] = rgb[1]; lut[i * 3 + 2] = rgb[2];
+      }
+      return lut;
+    }
+
+    function lutIndex(v, st) {
+      const span = (st.vmax - st.vmin) || 1;
+      return Math.round(clamp01((v - st.vmin) / span) * 255) * 3;
+    }
+
+    function insarStyle() {
+      return {
+        cmap: document.getElementById('insarCmap').value,
+        reverse: document.getElementById('insarCmapRev').checked,
+        vmin: parseFloat(document.getElementById('insarVmin').value),
+        vmax: parseFloat(document.getElementById('insarVmax').value),
+        label: document.getElementById('insarCbarLabel').value
+      };
+    }
+
+    function setRangeInputs(vmin, vmax) {
+      const f = v => String(Number(Number(v).toPrecision(3)));
+      document.getElementById('insarVmin').value = f(vmin);
+      document.getElementById('insarVmax').value = f(vmax);
+    }
+
+    // Rentang otomatis bila kolom Min/Max kosong atau tidak valid
+    function effectiveStyle() {
+      const st = insarStyle();
+      if (!(isFinite(st.vmin) && isFinite(st.vmax) && st.vmax > st.vmin)) {
+        let a = 0, b = 1;
+        if (insarData && insarData.kind === 'geotiff') { a = insarData.geotiff.vmin; b = insarData.geotiff.vmax; }
+        if (insarData && insarData.kind === 'points') {
+          a = Infinity; b = -Infinity;
+          insarData.points.forEach(p => { if (p.v < a) a = p.v; if (p.v > b) b = p.v; });
+        }
+        if (!(b > a)) b = a + 1;
+        st.vmin = a; st.vmax = b;
+      }
+      return st;
+    }
+
+    function fmtTick(v) {
+      const a = Math.abs(v);
+      return a === 0 ? '0' : a >= 100 ? v.toFixed(0) : a >= 1 ? v.toFixed(1) : v.toPrecision(2);
+    }
+
+    // Legend colorbar (canvas) untuk GeoTIFF dan titik deret waktu
+    function makeLegendUrl(st, lut) {
+      const W = 130, H = 270, barX = 10, barY = 40, barW = 18, barH = 214;
+      const c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      const g = c.getContext('2d');
+      g.fillStyle = '#111827';
+      g.font = '10px sans-serif';
+      g.textBaseline = 'middle';
+      let line1 = '', line2 = '';
+      (st.label || '').split(' ').forEach(w => {
+        if (!line2 && (line1 + ' ' + w).trim().length <= 20) line1 = (line1 + ' ' + w).trim();
+        else line2 = (line2 + ' ' + w).trim();
+      });
+      g.fillText(line1, 6, 10);
+      if (line2) g.fillText(line2, 6, 23);
+      for (let y = 0; y < barH; y++) {
+        const k = Math.round((1 - y / (barH - 1)) * 255) * 3;
+        g.fillStyle = `rgb(${lut[k]},${lut[k + 1]},${lut[k + 2]})`;
+        g.fillRect(barX, barY + y, barW, 1);
+      }
+      g.strokeStyle = '#111827';
+      g.strokeRect(barX, barY, barW, barH);
+      g.fillStyle = '#111827';
+      for (let i = 0; i < 5; i++) {
+        const val = st.vmax - i * (st.vmax - st.vmin) / 4;
+        const y = barY + i * (barH - 1) / 4;
+        g.fillRect(barX + barW, y, 4, 1);
+        g.fillText(fmtTick(val), barX + barW + 7, y);
+      }
+      return c.toDataURL('image/png');
+    }
+
+    function renderGeoTiffUrl(gt, st, lut) {
+      const c = document.createElement('canvas');
+      c.width = gt.width; c.height = gt.height;
+      const g = c.getContext('2d');
+      const img = g.createImageData(gt.width, gt.height);
+      for (let i = 0; i < gt.values.length; i++) {
+        const v = gt.values[i];
+        if (v !== v) continue;   // NaN -> transparan
+        const k = lutIndex(v, st);
+        const o = i * 4;
+        img.data[o] = lut[k]; img.data[o + 1] = lut[k + 1]; img.data[o + 2] = lut[k + 2]; img.data[o + 3] = 255;
+      }
+      g.putImageData(img, 0, 0);
+      return c.toDataURL('image/png');
+    }
+
+    // Grafik deret waktu (SVG sederhana) untuk popup titik
+    function buildSeriesSvg(series) {
+      const W = 320, H = 150, L0 = 38, R0 = 8, T0 = 8, B0 = 24;
+      const xs = series.map(s => Date.parse(s.d));
+      const ys = series.map(s => s.v);
+      const x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
+      let y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+      if (y1 === y0) { y1 += 1; y0 -= 1; }
+      const sx = x => L0 + (x - x0) / ((x1 - x0) || 1) * (W - L0 - R0);
+      const sy = y => T0 + (1 - (y - y0) / (y1 - y0)) * (H - T0 - B0);
+      const pts = series.map((s, i) => `${sx(xs[i]).toFixed(1)},${sy(ys[i]).toFixed(1)}`).join(' ');
+      const dots = series.map((s, i) => `<circle cx="${sx(xs[i]).toFixed(1)}" cy="${sy(ys[i]).toFixed(1)}" r="1.8" fill="#2563eb"/>`).join('');
+      return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="background:#fff">` +
+        `<rect x="${L0}" y="${T0}" width="${W - L0 - R0}" height="${H - T0 - B0}" fill="none" stroke="#9ca3af"/>` +
+        `<polyline points="${pts}" fill="none" stroke="#2563eb" stroke-width="1"/>${dots}` +
+        `<text x="${L0 - 4}" y="${T0 + 4}" font-size="9" text-anchor="end" fill="#374151">${y1.toFixed(1)}</text>` +
+        `<text x="${L0 - 4}" y="${H - B0}" font-size="9" text-anchor="end" fill="#374151">${y0.toFixed(1)}</text>` +
+        `<text x="${L0}" y="${H - 8}" font-size="9" fill="#374151">${escapeHtml(series[0].d)}</text>` +
+        `<text x="${W - R0}" y="${H - 8}" font-size="9" text-anchor="end" fill="#374151">${escapeHtml(series[series.length - 1].d)}</text>` +
+        `</svg>`;
+    }
+
+    function buildPointPopup(p) {
+      const series = parseTimeSeries(p.desc || '');
+      let html = `<div style="font-size:12px;line-height:1.45"><b>Lat</b> ${p.lat.toFixed(5)}&deg; &nbsp; <b>Lon</b> ${p.lon.toFixed(5)}&deg;`;
+      if (isFinite(p.v)) html += `<br><b>Mean LOS velocity</b>: ${p.v.toFixed(2)} ${escapeHtml(p.unitV)}`;
+      if (isFinite(p.cum)) html += `<br><b>Cumulative displacement</b>: ${p.cum.toFixed(2)} ${escapeHtml(p.unitC)}`;
+      if (isFinite(p.coh)) html += `<br><b>Temporal coherence</b>: ${p.coh.toFixed(2)}`;
+      if (series.length > 1) html += '<br>' + buildSeriesSvg(series);
+      return html + '</div>';
+    }
+
+    function getInsarBounds() {
+      if (!insarData) return null;
+      let s = Infinity, w = Infinity, n = -Infinity, e = -Infinity;
+      const add = (lat, lon) => { if (lat < s) s = lat; if (lat > n) n = lat; if (lon < w) w = lon; if (lon > e) e = lon; };
+      if (insarData.kind === 'points') {
+        insarData.points.forEach(p => add(p.lat, p.lon));
+      } else if (insarData.kind === 'geotiff') {
+        const b = insarData.geotiff.bounds;
+        add(b[0][0], b[0][1]); add(b[1][0], b[1][1]);
+      } else {
+        insarData.overlays.forEach(o => { add(o.bounds[0][0], o.bounds[0][1]); add(o.bounds[1][0], o.bounds[1][1]); });
+      }
+      return isFinite(s) ? L.latLngBounds([[s, w], [n, e]]) : null;
     }
 
     function removeInsarFromMap() {
@@ -1069,20 +1435,53 @@
       removeInsarFromMap();
       insarBounds = null;
       if (!document.getElementById('chkInsarResult').checked || !insarData) return;
+      insarBounds = getInsarBounds();
 
       const opacity = parseInt(document.getElementById('insarOpacity').value, 10) / 100;
-      insarGroup = L.layerGroup(insarData.overlays.map(o => {
-        const b = L.latLngBounds(o.bounds);
-        insarBounds = insarBounds ? insarBounds.extend(b) : b;
-        return L.imageOverlay(o.url, o.bounds, { opacity: opacity, interactive: false });
-      })).addTo(map);
+      let legends = insarData.legends || [];
 
-      if (insarData.legends.length > 0) {
+      if (!insarData.kind || insarData.kind === 'raster') {
+        insarGroup = L.layerGroup(insarData.overlays.map(o =>
+          L.imageOverlay(o.url, o.bounds, { opacity: opacity, interactive: false })
+        )).addTo(map);
+      } else {
+        const st = effectiveStyle();
+        const lut = buildLut(st.cmap, st.reverse);
+        if (insarData.kind === 'geotiff') {
+          const gt = insarData.geotiff;
+          insarGroup = L.layerGroup([
+            L.imageOverlay(renderGeoTiffUrl(gt, st, lut), gt.bounds, { opacity: opacity, interactive: false })
+          ]).addTo(map);
+        } else {
+          const renderer = L.canvas({ padding: 0.5 });
+          const markers = insarData.points.map(p => {
+            const k = lutIndex(p.v, st);
+            return L.circleMarker([p.lat, p.lon], {
+              renderer: renderer, radius: 5, color: '#111827', weight: 0.8,
+              fillColor: `rgb(${lut[k]},${lut[k + 1]},${lut[k + 2]})`, fillOpacity: opacity, opacity: opacity
+            }).bindPopup(() => buildPointPopup(p), { maxWidth: 360 });
+          });
+          const ref = insarData.refPoint;
+          if (ref) {
+            markers.push(L.marker([ref.lat, ref.lon], {
+              icon: L.divIcon({
+                className: 'volcano-icon',
+                html: `<svg width="18" height="18" viewBox="0 0 24 24"><polygon points="12,1 15,9 23,9 17,14 19,23 12,18 5,23 7,14 1,9 9,9" fill="${ref.color || '#77ff80'}" stroke="#000" stroke-width="1.2"/></svg>`,
+                iconSize: [18, 18], iconAnchor: [9, 9]
+              })
+            }).bindPopup(`<b>Reference point</b><br>Lat ${ref.lat.toFixed(5)}&deg; Lon ${ref.lon.toFixed(5)}&deg;`));
+          }
+          insarGroup = L.layerGroup(markers).addTo(map);
+        }
+        legends = [{ url: makeLegendUrl(st, lut), w: 0, h: 270 }];
+      }
+
+      if (legends.length > 0) {
         const LegendControl = L.Control.extend({
           options: { position: 'bottomleft' },
           onAdd: function() {
             const div = L.DomUtil.create('div', 'insar-legend');
-            insarData.legends.forEach(lg => {
+            legends.forEach(lg => {
               const img = document.createElement('img');
               img.src = lg.url;
               img.alt = 'InSAR colorbar';
@@ -1102,6 +1501,29 @@
       if (insarBounds) map.fitBounds(insarBounds, { padding: [60, 60] });
     }
 
+    function scheduleInsarRestyle() {
+      if (!insarData || !insarData.kind || insarData.kind === 'raster') return;
+      clearTimeout(insarRestyleTimer);
+      insarRestyleTimer = setTimeout(() => {
+        if (document.getElementById('chkInsarResult').checked) updateInsarLayer();
+      }, 200);
+    }
+
+    function insarStatusText(file, data) {
+      if (data.kind === 'points') {
+        return `${file.name}: ${data.points.length} titik deret waktu (tingkat "${data.level}")` +
+          (data.refPoint ? ', titik referensi' : '') + '. Klik titik untuk melihat grafik time series.';
+      }
+      if (data.kind === 'geotiff') {
+        const g = data.geotiff;
+        return `${file.name}: GeoTIFF ${g.fullWidth}x${g.fullHeight} px` +
+          (g.width !== g.fullWidth ? ` (pratinjau ${g.width}x${g.height})` : '') + '. Rentang warna otomatis dari data (persentil 2-98).';
+      }
+      return `${file.name}: ${data.overlays.length} overlay` +
+        (data.legends.length ? `, ${data.legends.length} colorbar` : '') + ' dimuat.' +
+        (data.rotated ? ' Catatan: rotasi pada KML diabaikan.' : '');
+    }
+
     document.getElementById('insarFile').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       const status = document.getElementById('insarStatus');
@@ -1109,18 +1531,22 @@
       status.className = 'text-[10px] text-slate-400 leading-relaxed';
       status.textContent = `Membaca ${file.name} ...`;
       try {
-        const data = await readKmz(file);
-        if (data.overlays.length === 0) throw new Error('Tidak ada GroundOverlay (gambar) di dalam KMZ.');
+        const isTiff = /\.tiff?$/i.test(file.name);
+        const data = isTiff ? await readGeoTiff(file) : await readKmz(file);
         removeInsarFromMap();
         if (insarData) insarData.blobUrls.forEach(u => { URL.revokeObjectURL(u); insarBlobs.delete(u); });
         insarData = data;
+        if (data.kind === 'geotiff') setRangeInputs(data.geotiff.vmin, data.geotiff.vmax);
+        if (data.kind === 'points') {
+          let a = Infinity, b = -Infinity;
+          data.points.forEach(p => { if (p.v < a) a = p.v; if (p.v > b) b = p.v; });
+          setRangeInputs(a, b > a ? b : a + 1);
+        }
         document.getElementById('chkInsarResult').checked = true;
         updateInsarLayer();
         zoomToInsar();
         status.className = 'text-[10px] text-emerald-400 leading-relaxed';
-        status.textContent = `${file.name}: ${data.overlays.length} overlay` +
-          (data.legends.length ? `, ${data.legends.length} colorbar` : '') + ' dimuat.' +
-          (data.rotated ? ' Catatan: rotasi pada KML diabaikan.' : '');
+        status.textContent = insarStatusText(file, data);
       } catch (err) {
         status.className = 'text-[10px] text-red-400 leading-relaxed';
         status.textContent = `Gagal memuat ${file.name}: ${err.message}`;
@@ -1131,14 +1557,23 @@
       const status = document.getElementById('insarStatus');
       if (e.target.checked && !insarData) {
         status.className = 'text-[10px] text-amber-400 leading-relaxed';
-        status.textContent = 'Belum ada file. Pilih file .kmz terlebih dahulu.';
+        status.textContent = 'Belum ada file. Pilih file .kmz atau GeoTIFF terlebih dahulu.';
       }
       updateInsarLayer();
     });
 
     document.getElementById('insarOpacity').addEventListener('input', (e) => {
       document.getElementById('insarOpacityVal').textContent = e.target.value + '%';
-      if (insarGroup) insarGroup.eachLayer(l => l.setOpacity(parseInt(e.target.value, 10) / 100));
+      const o = parseInt(e.target.value, 10) / 100;
+      if (insarGroup) insarGroup.eachLayer(l => {
+        if (l.setOpacity) l.setOpacity(o);
+        else if (l.setStyle) l.setStyle({ opacity: o, fillOpacity: o });
+      });
+    });
+
+    ['insarCmap', 'insarCmapRev', 'insarVmin', 'insarVmax', 'insarCbarLabel'].forEach(id => {
+      document.getElementById(id).addEventListener('input', scheduleInsarRestyle);
+      document.getElementById(id).addEventListener('change', scheduleInsarRestyle);
     });
 
     document.getElementById('btnInsarZoom').addEventListener('click', () => {
@@ -1228,6 +1663,7 @@
         try {
           const segments = await fetchFirst([PUSGEN_URL], r => r.text().then(parsePusgen));
           if (segments.length === 0) throw new Error('kosong');
+          pusgenData = segments;
           pusgenLayer = L.layerGroup(segments.map(sg => {
             const m = sg.meta;
             return L.polyline(sg.pts, { color: '#d946ef', weight: 1.8, opacity: 0.95 })
@@ -1324,7 +1760,7 @@
     document.getElementById('chkFaults').addEventListener('change', updateBirdLayer);
     document.getElementById('chkPusgen').addEventListener('change', updatePusgenLayer);
     // Sinkronkan jika browser memulihkan status centang saat halaman dimuat ulang
-    window.addEventListener('load', () => { updateBirdLayer(); updatePusgenLayer(); updateVolcanoLayer(); loadContours(); loadEarthquakes(); });
+    window.addEventListener('load', () => { updateBirdLayer(); updatePusgenLayer(); updateVolcanoLayer(); loadContours(); loadEarthquakes(); checkBackend(); });
 
     // --- KONTUR ELEVASI 200 m (daratan) DI PETA INTERAKTIF ---
     // Garis kontur dihitung server dari data relief (maks 5° x 5° agar tetap ringan); hasil Generate Map tidak dibatasi.
@@ -1488,9 +1924,8 @@
 
     // --- RADAR DISPLACEMENTS: atur region ke area hasil ---
     document.getElementById('btnInsarRegion').addEventListener('click', () => {
-      if (!insarData) return;
-      let b = null;
-      insarData.overlays.forEach(o => { const ob = L.latLngBounds(o.bounds); b = b ? b.extend(ob) : ob; });
+      const b = getInsarBounds();
+      if (!b) return;
       const mx = Math.max((b.getEast() - b.getWest()) * 0.3, 0.01);
       const my = Math.max((b.getNorth() - b.getSouth()) * 0.3, 0.01);
       setCoords(b.getWest() - mx, b.getEast() + mx, b.getSouth() - my, b.getNorth() + my);
@@ -1648,21 +2083,65 @@
 
     async function buildInsarOverlayPayload() {
       if (!isAdmin() || !document.getElementById('chkInsarOutput').checked || !insarData) return null;
-      const images = [];
-      for (const o of insarData.overlays) {
-        images.push({
-          image_base64: await blobToBase64(o.blob),
-          west: o.bounds[0][1], south: o.bounds[0][0], east: o.bounds[1][1], north: o.bounds[1][0]
-        });
-      }
-      return {
-        images,
-        vmin: parseFloat(document.getElementById('insarVmin').value),
-        vmax: parseFloat(document.getElementById('insarVmax').value),
-        cmap: document.getElementById('insarCmap').value,
-        reverse: document.getElementById('insarCmapRev').checked,
-        label: document.getElementById('insarCbarLabel').value
+      const st = insarStyle();
+      const st2 = effectiveStyle();   // rentang otomatis bila kolom kosong (GeoTIFF/titik)
+      const spec = {
+        kind: insarData.kind || 'raster',
+        vmin: (!insarData.kind || insarData.kind === 'raster') ? st.vmin : st2.vmin,
+        vmax: (!insarData.kind || insarData.kind === 'raster') ? st.vmax : st2.vmax,
+        cmap: st.cmap,
+        reverse: st.reverse,
+        label: st.label,
+        pointSize: parseFloat(document.getElementById('insarPointSize').value) || 6
       };
+      if (!insarData.kind || insarData.kind === 'raster') {
+        spec.images = [];
+        for (const o of insarData.overlays) {
+          spec.images.push({
+            image_base64: await blobToBase64(o.blob),
+            west: o.bounds[0][1], south: o.bounds[0][0], east: o.bounds[1][1], north: o.bounds[1][0]
+          });
+        }
+      } else if (insarData.kind === 'geotiff') {
+        spec.geotiff_base64 = await blobToBase64(insarData.geotiff.file);
+      } else {
+        spec.points = insarData.points.map(p => ({ lon: p.lon, lat: p.lat, v: p.v }));
+        if (insarData.refPoint) {
+          spec.refpoint = { lon: insarData.refPoint.lon, lat: insarData.refPoint.lat, color: insarData.refPoint.color || '#77ff80' };
+        }
+      }
+      return spec;
+    }
+
+    // --- STATUS SERVER (versi API & paket yang terpasang) ---
+    const REQUIRED_API_VERSION = 3;
+
+    function setBackendStatus(text, kind) {
+      const el = document.getElementById('backendStatus');
+      el.className = 'text-[11px] leading-snug ' +
+        (kind === 'ok' ? 'text-emerald-400' : kind === 'warn' ? 'text-amber-400' : kind === 'error' ? 'text-red-400' : 'text-slate-500');
+      el.textContent = text;
+    }
+
+    async function checkBackend() {
+      try {
+        const res = await fetch(`${API_BASE}/`);
+        const info = await res.json();
+        if (!(info.api_version >= REQUIRED_API_VERSION)) {
+          setBackendStatus('Server Railway masih versi lama: deploy ulang app.py agar semua fitur (PusGeN, kontur, overlay) aktif.', 'warn');
+          return;
+        }
+        const missing = [];
+        if (info.contours_available === false) missing.push('contourpy');
+        if (info.insar_overlay_available === false) missing.push('Pillow');
+        if (missing.length) {
+          setBackendStatus('Paket belum terpasang di server: ' + missing.join(', ') + ' (perbarui Dockerfile).', 'warn');
+          return;
+        }
+        setBackendStatus(`Server siap (API v${info.api_version})`, 'ok');
+      } catch (err) {
+        setBackendStatus('Server tidak dapat dihubungi.', 'error');
+      }
     }
 
     // --- 2. GENERATE REPRODUCIBLE PYGMT SCRIPT ---
@@ -1880,11 +2359,15 @@ print("Peta selesai digenerate pada resolusi 300 DPI.")
         const vmin = parseFloat(document.getElementById('insarVmin').value);
         const vmax = parseFloat(document.getElementById('insarVmax').value);
         if (!insarData) {
-          alert('Overlay InSAR pada Generate Map aktif, tetapi belum ada file KMZ.\nPilih file .kmz di menu Radar Displacements.');
+          alert('Overlay InSAR pada Generate Map aktif, tetapi belum ada file KMZ/GeoTIFF.\nPilih file di menu Radar Displacements.');
           return;
         }
         if (!isFinite(vmin) || !isFinite(vmax) || vmax <= vmin) {
           alert('Isi nilai Colorbar min dan max untuk InSAR (max harus lebih besar dari min).');
+          return;
+        }
+        if (insarData.kind === 'geotiff' && insarData.geotiff.file.size > GEOTIFF_UPLOAD_MAX_BYTES) {
+          alert('File GeoTIFF terlalu besar untuk overlay pada Generate Map (maks 25 MB). Kecilkan dulu, misalnya dengan gdal_translate -outsize.');
           return;
         }
       }
@@ -1934,6 +2417,17 @@ print("Peta selesai digenerate pada resolusi 300 DPI.")
           payload.eqEvents = eqEvents
             .filter(ev => ev.lon >= payload.minLon && ev.lon <= payload.maxLon && ev.lat >= payload.minLat && ev.lat <= payload.maxLat)
             .map(ev => ({ lon: ev.lon, lat: ev.lat, mag: ev.mag }));
+        }
+        // Patahan PusGeN: kirim geometri dari browser agar tidak bergantung pada file di server
+        if (payload.showPusgen && pusgenData) {
+          const inRegion = pts => {
+            let a = Infinity, b = -Infinity, c = Infinity, d = -Infinity;
+            pts.forEach(pt => { if (pt[0] < a) a = pt[0]; if (pt[0] > b) b = pt[0]; if (pt[1] < c) c = pt[1]; if (pt[1] > d) d = pt[1]; });
+            return b >= payload.minLat && a <= payload.maxLat && d >= payload.minLon && c <= payload.maxLon;
+          };
+          payload.pusgenSegments = pusgenData
+            .filter(sg => inRegion(sg.pts))
+            .map(sg => sg.pts.map(pt => [Math.round(pt[1] * 1e5) / 1e5, Math.round(pt[0] * 1e5) / 1e5]));
         }
         // Overlay InSAR pada hasil (khusus administrator; server memverifikasi token)
         payload.insarOverlay = await buildInsarOverlayPayload();
