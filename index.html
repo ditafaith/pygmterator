@@ -493,6 +493,19 @@
             <button id="basemapGoogle" type="button" title="Google Hybrid (satelit + label nama tempat)" class="px-2.5 py-0.5 text-[11px] font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">Google</button>
           </div>
         </div>
+
+        <!-- Panel grafik deret waktu: muncul saat titik InSAR (KMZ time series) diklik -->
+        <div id="tsPanel" class="hidden absolute bottom-9 right-3 z-[1000] w-[470px] max-w-[94%] bg-slate-900/95 backdrop-blur border border-slate-700 rounded-xl shadow-2xl text-xs text-slate-200 select-text">
+          <div class="flex items-start justify-between gap-2 px-3 pt-2.5">
+            <div id="tsHeader" class="leading-snug"></div>
+            <button id="btnTsClose" type="button" title="Tutup" class="text-slate-400 hover:text-white shrink-0"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div id="tsChart" class="px-2 pt-1.5"></div>
+          <div class="flex items-center justify-between gap-2 px-3 pb-2.5 pt-1.5">
+            <span id="tsHover" class="font-mono text-[11px] text-slate-400">Arahkan kursor ke grafik untuk membaca nilai</span>
+            <button id="btnTsCsv" type="button" class="shrink-0 px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300 text-[10px]"><i class="fa-solid fa-download mr-1"></i> CSV</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -627,6 +640,9 @@
     };
     let activeBasemap = 'esri';
     basemaps.esri.addTo(map);
+
+    // Satu renderer canvas untuk semua layer titik/garis padat (kontur, gempa, titik InSAR)
+    const canvasRenderer = L.canvas({ padding: 0.5 });
 
     function setBasemap(name) {
       if (!basemaps[name] || name === activeBasemap) return;
@@ -1379,36 +1395,154 @@
       return c.toDataURL('image/png');
     }
 
-    // Grafik deret waktu (SVG sederhana) untuk popup titik
-    function buildSeriesSvg(series) {
-      const W = 320, H = 150, L0 = 38, R0 = 8, T0 = 8, B0 = 24;
+    // --- PANEL GRAFIK DERET WAKTU (klik titik InSAR) ---
+    const TS_W = 440, TS_H = 250, TS_L = 50, TS_R = 12, TS_T = 12, TS_B = 36;
+    let tsSelected = null;   // { p, series, g }
+    let tsMarker = null;
+
+    function niceTicks(min, max, count) {
+      const span = (max - min) || 1;
+      const raw = span / Math.max(1, count);
+      const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+      const norm = raw / mag;
+      const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+      const ticks = [];
+      const first = Math.ceil(min / step - 1e-9), last = Math.floor(max / step + 1e-9);
+      for (let i = first; i <= last; i++) ticks.push(Number((i * step).toPrecision(12)));
+      return { ticks, step };
+    }
+
+    function tsGeometry(series) {
       const xs = series.map(s => Date.parse(s.d));
       const ys = series.map(s => s.v);
       const x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
       let y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
-      if (y1 === y0) { y1 += 1; y0 -= 1; }
-      const sx = x => L0 + (x - x0) / ((x1 - x0) || 1) * (W - L0 - R0);
-      const sy = y => T0 + (1 - (y - y0) / (y1 - y0)) * (H - T0 - B0);
-      const pts = series.map((s, i) => `${sx(xs[i]).toFixed(1)},${sy(ys[i]).toFixed(1)}`).join(' ');
-      const dots = series.map((s, i) => `<circle cx="${sx(xs[i]).toFixed(1)}" cy="${sy(ys[i]).toFixed(1)}" r="1.8" fill="#2563eb"/>`).join('');
-      return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="background:#fff">` +
-        `<rect x="${L0}" y="${T0}" width="${W - L0 - R0}" height="${H - T0 - B0}" fill="none" stroke="#9ca3af"/>` +
-        `<polyline points="${pts}" fill="none" stroke="#2563eb" stroke-width="1"/>${dots}` +
-        `<text x="${L0 - 4}" y="${T0 + 4}" font-size="9" text-anchor="end" fill="#374151">${y1.toFixed(1)}</text>` +
-        `<text x="${L0 - 4}" y="${H - B0}" font-size="9" text-anchor="end" fill="#374151">${y0.toFixed(1)}</text>` +
-        `<text x="${L0}" y="${H - 8}" font-size="9" fill="#374151">${escapeHtml(series[0].d)}</text>` +
-        `<text x="${W - R0}" y="${H - 8}" font-size="9" text-anchor="end" fill="#374151">${escapeHtml(series[series.length - 1].d)}</text>` +
-        `</svg>`;
+      const pad = (y1 - y0) * 0.08 || 1;
+      y0 -= pad; y1 += pad;
+      const sx = x => TS_L + (x - x0) / ((x1 - x0) || 1) * (TS_W - TS_L - TS_R);
+      const sy = y => TS_T + (1 - (y - y0) / (y1 - y0)) * (TS_H - TS_T - TS_B);
+      return { xs, ys, x0, x1, y0, y1, sx, sy };
     }
 
-    function buildPointPopup(p) {
+    function buildTsChart(series, unit) {
+      const g = tsGeometry(series);
+      const plotR = TS_W - TS_R, plotB = TS_H - TS_B;
+      let svg = `<svg id="tsSvg" viewBox="0 0 ${TS_W} ${TS_H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;background:#fff;border-radius:6px">`;
+      const yt = niceTicks(g.y0, g.y1, 5);
+      const dec = yt.step >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(yt.step)));
+      yt.ticks.forEach(v => {
+        const y = g.sy(v).toFixed(1);
+        svg += `<line x1="${TS_L}" y1="${y}" x2="${plotR}" y2="${y}" stroke="${v === 0 ? '#9ca3af' : '#e5e7eb'}" stroke-width="1"/>` +
+               `<text x="${TS_L - 5}" y="${y}" font-size="10" text-anchor="end" dominant-baseline="middle" fill="#374151">${v.toFixed(dec)}</text>`;
+      });
+      // sumbu waktu: tahunan, atau tiap 3 bulan bila rentang < 2 tahun
+      const spanYears = (g.x1 - g.x0) / (365.25 * 86400000);
+      const t0 = new Date(g.x0), t1 = new Date(g.x1);
+      const addTick = (t, label) => {
+        if (t < g.x0 || t > g.x1) return;
+        const x = g.sx(t).toFixed(1);
+        svg += `<line x1="${x}" y1="${TS_T}" x2="${x}" y2="${plotB}" stroke="#e5e7eb" stroke-width="1"/>` +
+               `<text x="${x}" y="${plotB + 14}" font-size="10" text-anchor="middle" fill="#374151">${label}</text>`;
+      };
+      if (spanYears >= 2) {
+        for (let yr = t0.getUTCFullYear(); yr <= t1.getUTCFullYear() + 1; yr++) addTick(Date.UTC(yr, 0, 1), String(yr));
+      } else {
+        for (let yr = t0.getUTCFullYear(); yr <= t1.getUTCFullYear() + 1; yr++) {
+          for (let mo = 0; mo < 12; mo += 3) addTick(Date.UTC(yr, mo, 1), `${yr}-${String(mo + 1).padStart(2, '0')}`);
+        }
+      }
+      svg += `<rect x="${TS_L}" y="${TS_T}" width="${plotR - TS_L}" height="${plotB - TS_T}" fill="none" stroke="#6b7280"/>`;
+      svg += `<polyline points="${series.map((s, i) => g.sx(g.xs[i]).toFixed(1) + ',' + g.sy(s.v).toFixed(1)).join(' ')}" fill="none" stroke="#93c5fd" stroke-width="1"/>`;
+      svg += series.map((s, i) => `<circle cx="${g.sx(g.xs[i]).toFixed(1)}" cy="${g.sy(s.v).toFixed(1)}" r="2.6" fill="#2563eb"/>`).join('');
+      svg += `<text transform="translate(12 ${((TS_T + plotB) / 2).toFixed(0)}) rotate(-90)" font-size="10" text-anchor="middle" fill="#374151">Displacement (${escapeHtml(unit || 'cm')})</text>`;
+      svg += `<line id="tsHoverLine" x1="0" y1="${TS_T}" x2="0" y2="${plotB}" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 3" display="none"/>` +
+             `<circle id="tsHoverDot" r="4.5" fill="#ef4444" stroke="#fff" stroke-width="1.5" display="none"/>`;
+      return svg + '</svg>';
+    }
+
+    function attachTsHover(series, unit) {
+      const chart = document.getElementById('tsChart');
+      const svg = chart.querySelector('svg');
+      if (!svg) return;
+      const g = tsGeometry(series);
+      const line = svg.querySelector('#tsHoverLine'), dot = svg.querySelector('#tsHoverDot');
+      const info = document.getElementById('tsHover');
+      svg.addEventListener('mousemove', (e) => {
+        const rect = svg.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (TS_W / (rect.width || TS_W));
+        let best = 0, bestD = Infinity;
+        g.xs.forEach((xv, i) => { const d = Math.abs(g.sx(xv) - x); if (d < bestD) { bestD = d; best = i; } });
+        const cx = g.sx(g.xs[best]), cy = g.sy(series[best].v);
+        line.setAttribute('x1', cx); line.setAttribute('x2', cx); line.setAttribute('display', 'inline');
+        dot.setAttribute('cx', cx); dot.setAttribute('cy', cy); dot.setAttribute('display', 'inline');
+        info.textContent = `${series[best].d}   ${series[best].v.toFixed(2)} ${unit || 'cm'}`;
+      });
+      svg.addEventListener('mouseleave', () => {
+        line.setAttribute('display', 'none'); dot.setAttribute('display', 'none');
+        info.textContent = 'Arahkan kursor ke grafik untuk membaca nilai';
+      });
+    }
+
+    function hideTimeSeriesPanel() {
+      document.getElementById('tsPanel').classList.add('hidden');
+      if (tsMarker) { map.removeLayer(tsMarker); tsMarker = null; }
+      tsSelected = null;
+    }
+
+    function showTimeSeriesPanel(p) {
       const series = parseTimeSeries(p.desc || '');
-      let html = `<div style="font-size:12px;line-height:1.45"><b>Lat</b> ${p.lat.toFixed(5)}&deg; &nbsp; <b>Lon</b> ${p.lon.toFixed(5)}&deg;`;
-      if (isFinite(p.v)) html += `<br><b>Mean LOS velocity</b>: ${p.v.toFixed(2)} ${escapeHtml(p.unitV)}`;
-      if (isFinite(p.cum)) html += `<br><b>Cumulative displacement</b>: ${p.cum.toFixed(2)} ${escapeHtml(p.unitC)}`;
-      if (isFinite(p.coh)) html += `<br><b>Temporal coherence</b>: ${p.coh.toFixed(2)}`;
-      if (series.length > 1) html += '<br>' + buildSeriesSvg(series);
-      return html + '</div>';
+      const unit = p.unitC || 'cm';
+      let head = `<b>Lat</b> ${p.lat.toFixed(5)}&deg; &nbsp;<b>Lon</b> ${p.lon.toFixed(5)}&deg;`;
+      const stats = [];
+      if (isFinite(p.v)) stats.push(`Velocity <b>${p.v.toFixed(2)}</b> ${escapeHtml(p.unitV || '')}`);
+      if (isFinite(p.cum)) stats.push(`Cum. displ. <b>${p.cum.toFixed(2)}</b> ${escapeHtml(unit)}`);
+      if (isFinite(p.coh)) stats.push(`Coherence <b>${p.coh.toFixed(2)}</b>`);
+      if (stats.length) head += '<br><span class="text-slate-300">' + stats.join(' &nbsp;|&nbsp; ') + '</span>';
+      document.getElementById('tsHeader').innerHTML = head;
+      const chart = document.getElementById('tsChart');
+      if (series.length < 2) {
+        chart.innerHTML = '<p class="px-2 py-4 text-slate-400">Titik ini tidak memiliki data deret waktu di dalam KMZ.</p>';
+      } else {
+        chart.innerHTML = buildTsChart(series, unit);
+        attachTsHover(series, unit);
+      }
+      document.getElementById('tsHover').textContent = 'Arahkan kursor ke grafik untuk membaca nilai';
+      document.getElementById('tsPanel').classList.remove('hidden');
+      tsSelected = { p, series };
+      if (tsMarker) map.removeLayer(tsMarker);
+      tsMarker = L.circleMarker([p.lat, p.lon], {
+        renderer: canvasRenderer, radius: 9, color: '#facc15', weight: 2.5, fill: false, interactive: false
+      }).addTo(map);
+    }
+
+    function downloadTsCsv() {
+      if (!tsSelected) return;
+      const rows = ['date,displacement'].concat(tsSelected.series.map(s => `${s.d},${s.v}`));
+      const blob = new Blob([rows.join('\n') + '\n'], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `timeseries_lat${tsSelected.p.lat.toFixed(5)}_lon${tsSelected.p.lon.toFixed(5)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    // Titik InSAR terdekat dari posisi klik (piksel layar)
+    function nearestInsarPoint(containerPoint, maxPx) {
+      if (!insarData || insarData.kind !== 'points' || !insarGroup || !map.hasLayer(insarGroup)) return null;
+      let best = null, bestD = maxPx * maxPx;
+      for (const p of insarData.points) {
+        const pt = map.latLngToContainerPoint([p.lat, p.lon]);
+        const dx = pt.x - containerPoint.x, dy = pt.y - containerPoint.y;
+        const d = dx * dx + dy * dy;
+        if (d <= bestD) { bestD = d; best = p; }
+      }
+      return best;
+    }
+
+    function anyMapToolActive() {
+      return zoomBoxActive || ['draw', 'edit', 'drag', 'remove'].some(n => toolButtons[n] && toolButtons[n].classList.contains('active'));
     }
 
     function getInsarBounds() {
@@ -1434,6 +1568,7 @@
     function updateInsarLayer() {
       removeInsarFromMap();
       insarBounds = null;
+      if (!document.getElementById('chkInsarResult').checked || !insarData || insarData.kind !== 'points') hideTimeSeriesPanel();
       if (!document.getElementById('chkInsarResult').checked || !insarData) return;
       insarBounds = getInsarBounds();
 
@@ -1453,13 +1588,13 @@
             L.imageOverlay(renderGeoTiffUrl(gt, st, lut), gt.bounds, { opacity: opacity, interactive: false })
           ]).addTo(map);
         } else {
-          const renderer = L.canvas({ padding: 0.5 });
+          const renderer = canvasRenderer;
           const markers = insarData.points.map(p => {
             const k = lutIndex(p.v, st);
             return L.circleMarker([p.lat, p.lon], {
               renderer: renderer, radius: 5, color: '#111827', weight: 0.8,
               fillColor: `rgb(${lut[k]},${lut[k + 1]},${lut[k + 2]})`, fillOpacity: opacity, opacity: opacity
-            }).bindPopup(() => buildPointPopup(p), { maxWidth: 360 });
+            }).bindTooltip(`${p.v.toFixed(2)} ${p.unitV || ''}`, { direction: 'top', offset: [0, -4] });
           });
           const ref = insarData.refPoint;
           if (ref) {
@@ -1469,7 +1604,7 @@
                 html: `<svg width="18" height="18" viewBox="0 0 24 24"><polygon points="12,1 15,9 23,9 17,14 19,23 12,18 5,23 7,14 1,9 9,9" fill="${ref.color || '#77ff80'}" stroke="#000" stroke-width="1.2"/></svg>`,
                 iconSize: [18, 18], iconAnchor: [9, 9]
               })
-            }).bindPopup(`<b>Reference point</b><br>Lat ${ref.lat.toFixed(5)}&deg; Lon ${ref.lon.toFixed(5)}&deg;`));
+            }).bindTooltip(`Reference point<br>Lat ${ref.lat.toFixed(5)}&deg; Lon ${ref.lon.toFixed(5)}&deg;`));
           }
           insarGroup = L.layerGroup(markers).addTo(map);
         }
@@ -1534,6 +1669,7 @@
         const isTiff = /\.tiff?$/i.test(file.name);
         const data = isTiff ? await readGeoTiff(file) : await readKmz(file);
         removeInsarFromMap();
+        hideTimeSeriesPanel();
         if (insarData) insarData.blobUrls.forEach(u => { URL.revokeObjectURL(u); insarBlobs.delete(u); });
         insarData = data;
         if (data.kind === 'geotiff') setRangeInputs(data.geotiff.vmin, data.geotiff.vmax);
@@ -1582,6 +1718,27 @@
       if (!insarGroup) updateInsarLayer();
       zoomToInsar();
     });
+
+    // Klik pada titik InSAR -> grafik deret waktu. Dipasang di tingkat peta (bukan per-penanda) agar andal
+    // untuk renderer canvas dan tidak bergantung pada urutan lapisan.
+    map.on('click', (e) => {
+      if (anyMapToolActive()) return;
+      const p = nearestInsarPoint(e.containerPoint, 14);
+      if (p) showTimeSeriesPanel(p);
+    });
+
+    let tsMoveFrame = null;
+    map.on('mousemove', (e) => {
+      if (zoomBoxActive || !insarData || insarData.kind !== 'points' || insarData.points.length > 5000) return;
+      if (tsMoveFrame) return;
+      tsMoveFrame = requestAnimationFrame(() => {
+        tsMoveFrame = null;
+        map.getContainer().style.cursor = nearestInsarPoint(e.containerPoint, 10) ? 'pointer' : '';
+      });
+    });
+
+    document.getElementById('btnTsClose').addEventListener('click', hideTimeSeriesPanel);
+    document.getElementById('btnTsCsv').addEventListener('click', downloadTsCsv);
 
     // --- FAULT LAYERS DI PETA INTERAKTIF ---
     // File data harus berada satu folder dengan index.html (root repo)
@@ -1817,7 +1974,7 @@
         if (!chk.checked) return;
         removeContourLayer();
         contourLayer = L.geoJSON(data.geojson, {
-          renderer: L.canvas({ padding: 0.5 }),
+          renderer: canvasRenderer,
           interactive: false,
           style: f => ({ color: '#374151', weight: (f.properties.level % 1000 === 0) ? 1.6 : 0.8, opacity: 0.85 })
         }).addTo(map);
@@ -1873,7 +2030,7 @@
     }
 
     function buildEqLayer(events) {
-      const renderer = L.canvas({ padding: 0.5 });
+      const renderer = canvasRenderer;
       return L.layerGroup(events.map(ev =>
         L.circleMarker([ev.lat, ev.lon], {
           renderer: renderer, radius: Math.max(3, (ev.mag - 3) * 3),
