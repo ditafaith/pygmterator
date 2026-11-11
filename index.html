@@ -4,9 +4,101 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bakuru Mappu</title>
-  
+
+  <!-- =====================================================================================
+       PENGATURAN WARNA  >>>  UBAH WARNA DI BLOK INI  <<<
+       Semua warna header, footer, dan tema gelap/terang diatur di sini.
+       ===================================================================================== -->
+  <style id="warna-tema">
+    /* ---------- 1. HEADER & FOOTER (sama untuk tema gelap maupun terang) ---------- */
+    :root {
+      --bar-bg:        lightskyblue;   /* <<< WARNA LATAR HEADER & FOOTER: ganti nama warna atau kode hex, mis. #87CEFA */
+      --bar-text:      #0f172a;        /* warna teks judul & footer (pilih gelap bila latar terang, dan sebaliknya) */
+      --bar-subtext:   #334155;        /* warna teks kecil di header (subjudul) */
+      --bar-border:    #5fb0e6;         /* garis tepi header & footer (cadangan) */
+      --bar-border:    color-mix(in srgb, var(--bar-bg) 75%, #000);   /* otomatis lebih gelap dari --bar-bg */
+      --bar-btn-bg:    #0f172a;        /* warna tombol di header */
+      --bar-btn-text:  #ffffff;        /* warna teks tombol di header */
+      --bar-btn-hover: #334155;        /* warna tombol saat disorot kursor */
+    }
+
+    /* ---------- 2. TEMA GELAP (default). Format angka: R G B ---------- */
+    :root,
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --white: 255 255 255;            /* teks utama pada kolom isian & judul */
+      --slate-50: 248 250 252;  --slate-100: 241 245 249; /* teks paling terang */
+      --slate-200: 226 232 240; --slate-300: 203 213 225; /* teks utama / sekunder */
+      --slate-400: 148 163 184; --slate-500: 100 116 139; /* teks redup */
+      --slate-600: 71 85 105;   --slate-700: 51 65 85;    /* garis tepi kuat, hover */
+      --slate-800: 30 41 59;    --slate-900: 15 23 42;    /* panel, kartu, kolom isian */
+      --slate-950: 2 6 23;                                /* latar halaman */
+      --emerald-300: 110 231 183; --emerald-400: 52 211 153; --emerald-500: 16 185 129; --emerald-800: 6 95 70;
+      --amber-300: 252 211 77;  --amber-400: 251 191 36;  --amber-500: 245 158 11;
+      --red-400: 248 113 113;
+      --sky-300: 125 211 252;   --sky-400: 56 189 248;
+      --cyan-200: 165 243 252;  --cyan-400: 34 211 238;   --cyan-500: 6 182 212;  --cyan-800: 21 94 117;
+      --pink-200: 251 207 232;  --pink-400: 244 114 182;  --pink-500: 236 72 153; --pink-800: 157 23 77;
+      --scroll-thumb: #475569;  --scroll-track: #1e293b;
+    }
+
+    /* ---------- 3. TEMA TERANG (skala slate dibalik: latar terang, teks gelap) ---------- */
+    html[data-theme="light"] {
+      color-scheme: light;
+      --white: 15 23 42;
+      --slate-50: 2 6 23;       --slate-100: 15 23 42;
+      --slate-200: 30 41 59;    --slate-300: 51 65 85;
+      --slate-400: 71 85 105;   --slate-500: 89 103 124;
+      --slate-600: 148 163 184; --slate-700: 203 213 225;
+      --slate-800: 226 232 240; --slate-900: 241 245 249;
+      --slate-950: 248 250 252;
+      --emerald-300: 6 95 70;   --emerald-400: 4 116 84;   --emerald-500: 5 150 105; --emerald-800: 6 95 70;
+      --amber-300: 146 64 14;   --amber-400: 166 76 8;     --amber-500: 217 119 6;
+      --red-400: 185 28 28;
+      --sky-300: 7 89 133;      --sky-400: 3 105 161;
+      --cyan-200: 21 94 117;    --cyan-400: 13 111 138;    --cyan-500: 8 145 178;  --cyan-800: 103 232 249;
+      --pink-200: 157 23 77;    --pink-400: 190 24 93;     --pink-500: 219 39 119; --pink-800: 249 168 212;
+      --scroll-thumb: #94a3b8;  --scroll-track: #e2e8f0;
+    }
+  </style>
+
+  <!-- Tema awal: baca pilihan tersimpan; bila belum ada, default GELAP (dijalankan sebelum halaman digambar) -->
+  <script>
+    (function () {
+      var theme = 'dark';
+      try {
+        var saved = localStorage.getItem('idgeomapTheme');
+        if (saved === 'light' || saved === 'dark') theme = saved;
+      } catch (e) { /* localStorage tidak tersedia */ }
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+
   <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Warna Tailwind dibaca dari variabel CSS di blok "PENGATURAN WARNA" di atas, sehingga satu palet melayani dua tema.
+    (function () {
+      var v = function (name) { return 'rgb(var(--' + name + ') / <alpha-value>)'; };
+      var scale = function (name, shades) {
+        var o = {};
+        shades.forEach(function (n) { o[n] = v(name + '-' + n); });
+        return o;
+      };
+      tailwind.config = {
+        theme: { extend: { colors: {
+          white: v('white'),
+          slate: scale('slate', [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]),
+          emerald: scale('emerald', [300, 400, 500, 800]),
+          amber: scale('amber', [300, 400, 500]),
+          red: scale('red', [400]),
+          sky: scale('sky', [300, 400]),
+          cyan: scale('cyan', [200, 400, 500, 800]),
+          pink: scale('pink', [200, 400, 500, 800])
+        } } }
+      };
+    })();
+  </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <!-- Leaflet & Leaflet-Geoman -->
@@ -25,8 +117,8 @@
     body { font-family: 'Inter', sans-serif; }
     pre, code { font-family: 'Fira Code', monospace; }
     .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: var(--scroll-track); }
     
     /* Tombol Home Custom di Leaflet */
     .leaflet-control-home {
@@ -62,11 +154,20 @@
       gap: 6px;
     }
     .insar-legend img { display: block; max-height: 40vh; width: auto; }
-    /* Header & footer: navajowhite */
-    .bar-navajo { background: #FFDEAD; color: #1e293b; }
-    header.bar-navajo { border-bottom: 1px solid #d9b382; }
-    footer.bar-navajo { border-top: 1px solid #d9b382; }
-    footer.bar-navajo a { color: #1e293b; text-decoration: underline; }
+    /* Header & footer (warna diatur di blok "PENGATURAN WARNA" di bagian atas file) */
+    .bar-theme { background: var(--bar-bg); color: var(--bar-text); }
+    header.bar-theme { border-bottom: 1px solid var(--bar-border); }
+    footer.bar-theme { border-top: 1px solid var(--bar-border); }
+    footer.bar-theme a { color: var(--bar-text); text-decoration: underline; }
+    .bar-title { color: var(--bar-text); }
+    .bar-sub { color: var(--bar-subtext); }
+    .bar-icon { color: var(--bar-text); background: rgba(15, 23, 42, 0.08); border-color: rgba(15, 23, 42, 0.22); }
+    .bar-btn { background: var(--bar-btn-bg); color: var(--bar-btn-text); }
+    .bar-btn:hover { background: var(--bar-btn-hover); }
+    /* Tema terang: teks pada tombol berisi warna tetap putih */
+    html[data-theme="light"] .bg-emerald-500,
+    html[data-theme="light"] .bg-emerald-600,
+    html[data-theme="light"] .bg-emerald-700 { color: #ffffff; }
     /* Toolbar peta horizontal (kiri atas) */
     .map-toolbar { display: flex; align-items: flex-start; gap: 6px; }
     .map-toolbar .map-toolbar-sep { margin-left: 8px; }
@@ -88,24 +189,27 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col select-none">
 
   <!-- Header -->
-  <header class="bar-navajo h-[65px] px-6 flex items-center justify-between shadow-md">
+  <header class="bar-theme h-[65px] px-6 flex items-center justify-between shadow-md">
     <div class="flex items-center gap-3">
-      <div class="p-2 bg-emerald-700/15 text-emerald-800 rounded-lg border border-emerald-700/30">
+      <div class="bar-icon p-2 rounded-lg border">
         <i class="fa-solid fa-earth-asia text-xl"></i>
       </div>
       <div>
-        <h1 class="text-lg font-bold tracking-tight text-slate-900">Bakuru Mappu</h1>
-        <p class="text-xs text-slate-600">PyGMT-based Cartographic Engine</p>
+        <h1 class="bar-title text-lg font-bold tracking-tight">Bakuru Mappu</h1>
+        <p class="bar-sub text-xs">PyGMT-based Cartographic Engine</p>
       </div>
     </div>
     <div class="flex items-center gap-3">
+      <button id="btnTheme" type="button" title="Ganti ke tema terang" class="bar-btn w-9 h-9 rounded-lg shadow transition flex items-center justify-center text-sm">
+        <i class="fa-solid fa-sun"></i>
+      </button>
       <span id="adminBadge" class="hidden px-2.5 py-1 rounded-md bg-emerald-700 text-white text-xs font-semibold items-center gap-1.5 flex">
         <i class="fa-solid fa-user-shield"></i> Admin: <span id="adminName"></span>
       </span>
-      <button id="btnAdminLogin" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-2">
+      <button id="btnAdminLogin" class="bar-btn px-3 py-1.5 text-xs font-semibold rounded-lg shadow transition flex items-center gap-2">
         <i class="fa-solid fa-user-shield"></i> Administrator Login
       </button>
-      <button id="btnAdminLogout" class="hidden px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-2">
+      <button id="btnAdminLogout" class="bar-btn hidden px-3 py-1.5 text-xs font-semibold rounded-lg shadow transition flex items-center gap-2">
         <i class="fa-solid fa-right-from-bracket"></i> Logout
       </button>
     </div>
@@ -510,7 +614,7 @@
     </section>
 
   </main>
-<footer class="bar-navajo h-8 shrink-0 flex items-center justify-center text-[11px]">
+<footer class="bar-theme h-8 shrink-0 flex items-center justify-center text-[11px]">
   Developed by&nbsp;<a href="mailto:arif@seis.nagoya.ac.jp">arif@seis.nagoya.ac.jp</a>
 </footer>
 
@@ -607,6 +711,26 @@
   </div>
 
   <script>
+    // --- TEMA GELAP / TERANG (default gelap; pilihan disimpan di browser) ---
+    const THEME_KEY = 'idgeomapTheme';
+
+    function currentTheme() {
+      return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      const btn = document.getElementById('btnTheme');
+      btn.innerHTML = theme === 'dark' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+      btn.title = theme === 'dark' ? 'Ganti ke tema terang' : 'Ganti ke tema gelap';
+      try { localStorage.setItem(THEME_KEY, theme); } catch (e) { /* localStorage tidak tersedia */ }
+    }
+
+    document.getElementById('btnTheme').addEventListener('click', () => {
+      applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+    });
+    applyTheme(currentTheme());
+
     // Alamat backend PyGMT (lokal saat dev, Railway saat produksi)
     const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
       ? 'http://127.0.0.1:5001'
