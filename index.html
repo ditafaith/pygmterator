@@ -383,7 +383,7 @@
         <button id="btnInsarRegion" type="button" class="text-[10px] px-2 py-1 bg-slate-700/60 hover:bg-slate-700 rounded text-slate-300">
           <i class="fa-solid fa-vector-square mr-1"></i> Set region to result
         </button>
-        <p id="insarStatus" class="text-[10px] text-slate-400 leading-relaxed">Pilih file hasil InSAR: .kmz (MintPy: raster atau deret waktu titik) atau GeoTIFF (.tif, EPSG:4326).</p>
+        <p id="insarStatus" class="text-[10px] text-slate-400 leading-relaxed">Choose your result file *.kmz or *.tif (EPSG:4326).</p>
 
         <!-- Pengaturan warna: dipakai pratinjau GeoTIFF / titik deret waktu, dan colorbar pada Generate Map -->
         <div id="insarStyleBlock" class="border-t border-slate-700/60 pt-2.5 space-y-2">
@@ -391,7 +391,7 @@
             <div>
               <span class="text-slate-400 block mb-1">Colormap</span>
               <select id="insarCmap" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:border-emerald-500">
-                <option value="jet" selected>jet (MintPy default)</option>
+                <option value="jet" selected>jet</option>
                 <option value="viridis">viridis</option>
                 <option value="turbo">turbo</option>
                 <option value="roma">roma (pratinjau &asymp;)</option>
@@ -404,18 +404,18 @@
             </label>
             <div>
               <span class="text-slate-400 block mb-1">Colorbar min</span>
-              <input id="insarVmin" type="number" step="any" placeholder="mis. -24" class="select-text w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white font-mono focus:border-emerald-500">
+              <input id="insarVmin" type="number" step="any" placeholder="Ex. -15" class="select-text w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white font-mono focus:border-emerald-500">
             </div>
             <div>
               <span class="text-slate-400 block mb-1">Colorbar max</span>
-              <input id="insarVmax" type="number" step="any" placeholder="mis. 3" class="select-text w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white font-mono focus:border-emerald-500">
+              <input id="insarVmax" type="number" step="any" placeholder="Ex. 15" class="select-text w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white font-mono focus:border-emerald-500">
             </div>
           </div>
           <div class="text-xs">
             <span class="text-slate-400 block mb-1">Colorbar label</span>
-            <input id="insarCbarLabel" type="text" value="Mean LOS velocity (cm/year)" class="select-text w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:border-emerald-500">
+            <input id="insarCbarLabel" type="text" value="LOS Velocity (cm/year)" class="select-text w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:border-emerald-500">
           </div>
-          <p class="text-[10px] text-slate-500 leading-relaxed">Untuk GeoTIFF dan titik deret waktu, rentang terisi otomatis dari data dan bisa diubah. Untuk KMZ raster, Min/Max dan colormap harus sama dengan yang dipakai saat membuat KMZ di MintPy.</p>
+          <p class="text-[10px] text-slate-500 leading-relaxed">For GeoTIFF and time-series points, the range is auto-filled from the data and can be edited. For raster KMZ, Min/Max and colormap must match those used when generating the KMZ.</p>
         </div>
 
         <!-- Khusus administrator: overlay InSAR pada hasil Generate Map -->
@@ -458,8 +458,8 @@
 
         <input id="gpsFile" type="file" class="block w-full text-[11px] text-slate-300 cursor-pointer file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-700 file:text-emerald-300 hover:file:bg-slate-600">
         <p id="gpsStatus" class="text-[10px] text-slate-400 leading-relaxed">
-          Format tiap baris: <span class="font-mono text-slate-300">ID lat lon</span><br>
-          Contoh: <span class="font-mono text-slate-300">bako -6.309 106.203</span>
+          Format  : <span class="font-mono text-slate-300">ID lat lon</span><br>
+          Example : <span class="font-mono text-slate-300">bako -6.309 106.203</span>
         </p>
       </section>
 
@@ -502,7 +502,7 @@
         <div class="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 space-y-2">
           <label class="flex items-center gap-2.5 cursor-pointer">
             <input id="chkScalebar" type="checkbox" class="w-3.5 h-3.5 rounded text-emerald-500 bg-slate-800 border-slate-700">
-            <span class="text-xs font-medium text-slate-200">Show Scalebar (Southwest Corner)</span>
+            <span class="text-xs font-medium text-slate-200">Show Scalebar</span>
           </label>
           <div id="scalebarDropdownContainer" class="hidden text-xs pt-1">
             <span class="text-slate-400 block mb-1">Scalebar Length (km)</span>
