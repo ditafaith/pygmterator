@@ -1770,8 +1770,8 @@
 
     function insarStatusText(file, data) {
       if (data.kind === 'points') {
-        return `${file.name}: ${data.points.length} titik deret waktu (tingkat "${data.level}")` +
-          (data.refPoint ? ', titik referensi' : '') + '. Klik titik untuk melihat grafik time series.';
+        return `${file.name}: ${data.points.length} time series point (tingkat "${data.level}")` +
+          (data.refPoint ? ', titik referensi' : '') + '. Click a point to view the time-series graph.';
       }
       if (data.kind === 'geotiff') {
         const g = data.geotiff;
