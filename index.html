@@ -1770,7 +1770,7 @@
 
     function insarStatusText(file, data) {
       if (data.kind === 'points') {
-        return `${file.name}: ${data.points.length} time series point (tingkat "${data.level}")` +
+        return `${file.name}: ${data.points.length} time series point` +
           '. Click a point to view the time-series graph.';
       }
       if (data.kind === 'geotiff') {
