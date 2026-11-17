@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "volcanoes": [
+    {
+      "name": "Mt. Ibu",
+      "lat": 1.4941,
+      "lon": 127.6324,
+      "kmz": "ibu.kmz",
+      "sources": []
+    }
+  ]
+}
